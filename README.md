@@ -146,6 +146,8 @@ The control page can:
 
 The main recognition path uses `shazamio` and does not require an API key. LRCLIB lyric lookup also does not require an API key.
 
+This project is intended for personal/local experimentation and is not affiliated with, endorsed by, or supported by Shazam or Apple. The `shazamio` recognition path is unofficial; if you need a supported commercial or production integration, use Apple's ShazamKit instead and review Apple's terms for your use case.
+
 An older optional AcoustID helper remains in `tools/identify_acoustid.py` for experimentation. It requires `fpcalc` and an `ACOUSTID_API_KEY` environment variable, but it is not used by the dashboard server.
 
 ## Runtime Files
