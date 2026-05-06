@@ -1,0 +1,15 @@
+[Unit]
+Description=Vinyl Now Playing dashboard
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/VinylNowPlaying
+ExecStart=/home/pi/VinylNowPlaying/.venv/bin/python tools/now_playing_server.py --host 0.0.0.0 --audio-backend alsa --alsa-device dsnoop:CARD=Device,DEV=0 --alsa-rate 48000 --level-window 0.25 --now-playing-clear-silence-seconds 120
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

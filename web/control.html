@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vinyl Control</title>
+    <link rel="stylesheet" href="/app.css">
+  </head>
+  <body class="control-page">
+    <main class="control-shell">
+      <header>
+        <p>Vinyl Dashboard</p>
+        <h1>Control</h1>
+      </header>
+
+      <section class="control-card">
+        <div>
+          <span id="controlStatus" class="control-status">Loading</span>
+          <h2 id="controlTitle">Listening...</h2>
+          <p id="controlArtist">Waiting for state.</p>
+        </div>
+        <button id="controlScan" type="button">Scan Now</button>
+      </section>
+
+      <section class="control-grid">
+        <div class="control-card compact">
+          <span>Next Scan</span>
+          <strong id="controlNext">-</strong>
+        </div>
+        <div class="control-card compact">
+          <span>Last Scan</span>
+          <strong id="controlLast">-</strong>
+        </div>
+        <div class="control-card compact">
+          <span>Level</span>
+          <strong id="controlLevel">-</strong>
+        </div>
+        <div class="control-card compact">
+          <span>Lyrics</span>
+          <strong id="controlLyrics">-</strong>
+        </div>
+      </section>
+
+      <section class="control-card">
+        <div>
+          <span>Display</span>
+          <p class="control-copy">Open the dashboard on the TV and this page on your phone.</p>
+        </div>
+        <a class="secondary" href="/">Open TV View</a>
+      </section>
+
+      <section class="control-card manual-controls">
+        <div>
+          <span>Manual Override</span>
+          <p class="control-copy">Enter the record and track list, then choose the track that is playing.</p>
+          <div class="manual-fields">
+            <label>
+              <span>Artist</span>
+              <input id="manualArtist" type="text" autocomplete="off">
+            </label>
+            <label>
+              <span>Album</span>
+              <input id="manualAlbum" type="text" autocomplete="off">
+            </label>
+            <label>
+              <span>Year</span>
+              <input id="manualReleased" type="text" inputmode="numeric" autocomplete="off">
+            </label>
+            <label class="wide">
+              <span>Tracks</span>
+              <textarea id="manualTracks" rows="7" placeholder="One track per line"></textarea>
+            </label>
+            <label class="wide">
+              <span>Selected Track</span>
+              <select id="manualSelect"></select>
+            </label>
+          </div>
+        </div>
+        <div class="control-buttons">
+          <button id="manualLoad" type="button">Load List</button>
+          <button id="manualUse" type="button">Use Selected</button>
+          <button id="manualPrev" type="button">Previous</button>
+          <button id="manualNext" type="button">Next</button>
+          <button id="manualClear" type="button">Clear Override</button>
+        </div>
+      </section>
+
+      <section class="control-card lyric-controls">
+        <div>
+          <span>Lyrics</span>
+          <p class="control-copy">Nudge synced lyrics, or scroll plain lyrics on the TV.</p>
+          <div class="lyric-readout">
+            <div>
+              <span>Sync Offset</span>
+              <strong id="controlLyricOffset">-</strong>
+            </div>
+            <div>
+              <span>Default Offset</span>
+              <strong id="controlDefaultOffset">-</strong>
+            </div>
+            <div>
+              <span>Scroll Line</span>
+              <strong id="controlLyricScroll">-</strong>
+            </div>
+          </div>
+        </div>
+        <div class="control-buttons">
+          <button data-lyric-offset="-0.5" type="button">Earlier</button>
+          <button data-lyric-offset="0.5" type="button">Later</button>
+          <button data-lyric-scroll="-4" type="button">Scroll Up</button>
+          <button data-lyric-scroll="4" type="button">Scroll Down</button>
+          <button data-lyric-reset="true" type="button">Reset</button>
+        </div>
+      </section>
+
+      <section class="control-card lyric-controls">
+        <div>
+          <span>Default Sync</span>
+          <p class="control-copy">Tune the default offset and save it for future tracks/restarts.</p>
+        </div>
+        <div class="control-buttons">
+          <button data-default-offset="-0.5" type="button">Default -0.5s</button>
+          <button data-default-offset="0.5" type="button">Default +0.5s</button>
+          <button id="saveCurrentDefault" type="button">Use Current Offset</button>
+        </div>
+      </section>
+    </main>
+    <script src="/control.js"></script>
+  </body>
+</html>

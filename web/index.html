@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vinyl Now Playing</title>
+    <link rel="stylesheet" href="/app.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="tv-grid">
+        <section class="now-playing">
+          <section class="title-panel" aria-live="polite">
+            <div class="topline">
+              <span id="statusDot" class="status-dot"></span>
+              <span id="statusText">Starting</span>
+            </div>
+            <h1 id="title">Listening...</h1>
+            <p id="artist">Waiting for the first recognition pass.</p>
+          </section>
+
+          <div class="art-wrap">
+            <img id="cover" class="cover hidden" alt="Album cover">
+            <div id="recordFallback" class="record-fallback" aria-hidden="true">
+              <div class="record-core"></div>
+            </div>
+          </div>
+
+          <section class="vu-panel" aria-label="Audio levels">
+            <div class="waveform-wrap">
+              <canvas id="waveform" class="waveform" aria-label="Live waveform"></canvas>
+            </div>
+            <div class="vu-meter">
+              <div class="vu-face">
+                <div class="vu-scale">
+                  <span>-40</span>
+                  <span>-20</span>
+                  <span>-10</span>
+                  <span>-3</span>
+                  <span>0</span>
+                </div>
+                <div class="vu-arc"></div>
+                <div id="needleLeft" class="vu-needle"></div>
+                <div class="vu-pivot"></div>
+              </div>
+              <div class="vu-label">
+                <span>L</span>
+                <strong id="leftDb">-</strong>
+              </div>
+            </div>
+
+            <div class="vu-meter">
+              <div class="vu-face">
+                <div class="vu-scale">
+                  <span>-40</span>
+                  <span>-20</span>
+                  <span>-10</span>
+                  <span>-3</span>
+                  <span>0</span>
+                </div>
+                <div class="vu-arc"></div>
+                <div id="needleRight" class="vu-needle"></div>
+                <div class="vu-pivot"></div>
+              </div>
+              <div class="vu-label">
+                <span>R</span>
+                <strong id="rightDb">-</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="track-panel">
+            <dl class="meta">
+              <div>
+                <dt>Album</dt>
+                <dd id="album">-</dd>
+              </div>
+              <div>
+                <dt>Released</dt>
+                <dd id="released">-</dd>
+              </div>
+              <div>
+                <dt>Last Scan</dt>
+                <dd id="lastScan">-</dd>
+              </div>
+              <div>
+                <dt>Next Scan</dt>
+                <dd id="nextScan">-</dd>
+              </div>
+            </dl>
+            <section class="history-band">
+              <h2>Recent Matches</h2>
+              <ol id="history" class="history"></ol>
+            </section>
+          </section>
+        </section>
+
+        <aside class="side-panel">
+          <section class="lyrics-band">
+            <div class="lyrics-header">
+              <h2>Lyrics</h2>
+              <div class="lyrics-status">
+                <strong id="lyricsMode">Waiting</strong>
+                <span id="lyricsSource">LRCLIB</span>
+              </div>
+            </div>
+            <div id="lyricsText" class="lyrics-text">Lyrics will appear here when LRCLIB has a match.</div>
+          </section>
+        </aside>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+[Unit]
+Description=Vinyl Now Playing kiosk browser
+After=network-online.target vinyl-now-playing.service systemd-user-sessions.service
+Wants=vinyl-now-playing.service
+Conflicts=getty@tty1.service
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sleep 15
+Environment=HOME=/home/pi
+WorkingDirectory=/home/pi
+ExecStart=/home/pi/VinylNowPlaying/deploy/vinyl-kiosk-openvt.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
