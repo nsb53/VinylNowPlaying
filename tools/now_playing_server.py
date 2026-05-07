@@ -639,7 +639,7 @@ class NowPlayingService:
             ):
                 self.clear_now_playing_for_track_gap_locked()
                 self.track_gap_cleared = True
-                log_event("audio", event="silence_detected", seconds=round(silence_seconds, 2))
+                log_event("audio", action="silence_detected", seconds=round(silence_seconds, 2))
 
             if self.last_loud_at is None or now - self.last_loud_at > self.args.silence_hold_seconds:
                 self.music_active_since = None
