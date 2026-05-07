@@ -350,6 +350,7 @@ class NowPlayingService:
         self.level_process = None
         self.music_active_since = None
         self.last_loud_at = None
+        self.track_gap_cleared = False
         self.manual_started_at = None
         self.state = DashboardState(
             config={
@@ -361,6 +362,9 @@ class NowPlayingService:
                 "levelWindowSeconds": args.level_window,
                 "silenceThresholdDb": args.silence_threshold,
                 "musicStartSeconds": args.music_start_seconds,
+                "trackGapSilenceSeconds": args.track_gap_silence_seconds,
+                "clearOnTrackGap": args.clear_on_track_gap,
+                "silenceHoldSeconds": args.silence_hold_seconds,
                 "manualClearSilenceSeconds": args.manual_clear_silence_seconds,
                 "nowPlayingClearSilenceSeconds": args.now_playing_clear_silence_seconds,
                 "defaultLyricOffsetSeconds": lyric_default_offset,
@@ -462,6 +466,23 @@ class NowPlayingService:
         self.state.lyricScroll = 0
         self.state.status = "idle"
         self.state.message = "Waiting for music"
+        self.write_state_locked()
+        return True
+
+    def clear_now_playing_for_track_gap_locked(self):
+        if (
+            not self.args.clear_on_track_gap
+            or self.state.manualMode
+            or not self.state.current
+        ):
+            return False
+        self.state.previous = self.state.current
+        self.state.current = None
+        self.state.lyricOffsetSeconds = self.state.config["defaultLyricOffsetSeconds"]
+        self.state.lyricScroll = 0
+        self.state.status = "idle"
+        self.state.message = "Track gap detected"
+        self.state.nextScanAt = None
         self.write_state_locked()
         return True
 
@@ -573,9 +594,22 @@ class NowPlayingService:
         with self.lock:
             if rms >= self.args.silence_threshold:
                 self.last_loud_at = now
+                self.track_gap_cleared = False
                 if self.music_active_since is None:
                     self.music_active_since = now
-            elif self.last_loud_at is None or now - self.last_loud_at > self.args.silence_hold_seconds:
+                return
+
+            silence_seconds = self.silence_seconds_locked(now)
+            if (
+                silence_seconds is not None
+                and self.args.track_gap_silence_seconds > 0
+                and silence_seconds >= self.args.track_gap_silence_seconds
+                and not self.track_gap_cleared
+            ):
+                self.clear_now_playing_for_track_gap_locked()
+                self.track_gap_cleared = True
+
+            if self.last_loud_at is None or now - self.last_loud_at > self.args.silence_hold_seconds:
                 self.music_active_since = None
                 if self.manual_silence_timed_out_locked(now):
                     self.clear_manual_locked("Manual override cleared after silence")
@@ -628,7 +662,7 @@ class NowPlayingService:
             started_at = utc_now()
             self.update(
                 status="listening",
-                message="Capturing a 15 second sample",
+                message=f"Capturing a {self.args.primary_seconds} second sample",
                 error=None,
                 nextScanAt=None,
             )
@@ -641,7 +675,7 @@ class NowPlayingService:
             if not track and self.args.fallback_seconds > self.args.primary_seconds:
                 self.update(
                     status="listening",
-                    message="No match yet, trying a 30 second fallback",
+                    message=f"No match yet, trying a {self.args.fallback_seconds} second fallback",
                 )
                 sample_path, levels = self.capture(self.args.fallback_seconds)
                 self.update(status="identifying", message="Identifying the fallback sample")
@@ -846,13 +880,15 @@ def main():
     parser.add_argument("--alsa-device", default="")
     parser.add_argument("--alsa-rate", type=int, default=44100)
     parser.add_argument("--alsa-channels", type=int, default=2)
-    parser.add_argument("--interval", type=int, default=60)
-    parser.add_argument("--primary-seconds", type=int, default=15)
-    parser.add_argument("--fallback-seconds", type=int, default=30)
+    parser.add_argument("--interval", type=int, default=15)
+    parser.add_argument("--primary-seconds", type=int, default=8)
+    parser.add_argument("--fallback-seconds", type=int, default=15)
     parser.add_argument("--level-window", type=float, default=0.033)
     parser.add_argument("--silence-threshold", type=float, default=-55.0)
-    parser.add_argument("--music-start-seconds", type=float, default=3.0)
-    parser.add_argument("--silence-hold-seconds", type=float, default=8.0)
+    parser.add_argument("--music-start-seconds", type=float, default=1.5)
+    parser.add_argument("--track-gap-silence-seconds", type=float, default=2.0)
+    parser.add_argument("--clear-on-track-gap", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--silence-hold-seconds", type=float, default=2.0)
     parser.add_argument("--manual-clear-silence-seconds", type=float, default=75.0)
     parser.add_argument("--now-playing-clear-silence-seconds", type=float, default=120.0)
     parser.add_argument("--lyric-default-offset", type=float, default=11.0)

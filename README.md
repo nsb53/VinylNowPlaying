@@ -9,7 +9,7 @@ A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a
 - Lyrics lookup from LRCLIB, including synced lyrics when available
 - Phone-friendly control page for lyric offset, manual track override, and plain lyric scrolling
 - Live VU meters and waveform from the capture input
-- Automatic idle behavior: only scans when music is detected and clears Now Playing after silence
+- Automatic idle behavior: scans only when music is detected, clears Now Playing on short track gaps, and rescans when music resumes
 - Raspberry Pi systemd services and Chromium kiosk setup
 - Mac CoreAudio helper scripts for local development
 
@@ -81,6 +81,19 @@ If your input device is not named `USB PnP Audio Device`, pass a device name sub
 ```sh
 .venv/bin/python tools/now_playing_server.py --device "Your Input Device Name"
 ```
+
+The default recognition loop is tuned for quicker record changes:
+
+```text
+8 second primary sample
+15 second fallback sample
+15 second active-music rescan interval
+2 second track-gap silence detection
+```
+
+When the level stays below `--silence-threshold` for `--track-gap-silence-seconds`,
+the current Now Playing display clears and the next music start triggers a fresh
+scan. Same-track scans do not reset lyric timing.
 
 ## Quick Start: Raspberry Pi
 

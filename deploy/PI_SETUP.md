@@ -155,6 +155,16 @@ If music detection is too sensitive or not sensitive enough:
 
 Less negative means stricter, more negative means more sensitive.
 
+If track changes are not being caught quickly enough, tune the gap and scan
+timing:
+
+```sh
+--track-gap-silence-seconds 2 --interval 15 --primary-seconds 8 --fallback-seconds 15
+```
+
+Use `--no-clear-on-track-gap` if you want to keep the current track visible
+during quiet gaps between songs.
+
 By default, the current artwork/match/lyrics clear after 120 seconds of silence:
 
 ```sh
