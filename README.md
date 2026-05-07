@@ -1,6 +1,6 @@
 # Vinyl Now Playing
 
-Current app version: `0.4.0`
+Current app version: `0.5.0`
 
 A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a USB audio input, identifies the current track, shows album art, displays lyrics from LRCLIB, and renders live stereo-style VU meters plus a thin LED waveform. It is designed to run as a fullscreen kiosk on a Raspberry Pi, with Mac support for development and testing.
 
@@ -12,6 +12,7 @@ A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a
 - Phone-friendly control page for lyric offset, manual track override, and plain lyric scrolling
 - Live VU meters and waveform from the capture input
 - Toggleable real-time display modes: classic VU meters or FFT-based spectrum analyzer
+- Experimental `/v2` TV layout for testing a new dashboard without replacing the stable `/` view
 - Automatic idle behavior: scans only when music is detected, clears Now Playing on short track gaps, and rescans when music resumes
 - Raspberry Pi systemd services and Chromium kiosk setup
 - Mac CoreAudio helper scripts for local development
@@ -71,6 +72,12 @@ Open the TV dashboard:
 
 ```text
 http://127.0.0.1:8765
+```
+
+Open the experimental TV dashboard:
+
+```text
+http://127.0.0.1:8765/v2
 ```
 
 Open the control page:
@@ -154,6 +161,7 @@ http://<pi-ip-address>:8765/control
 The control page can:
 
 - trigger a scan
+- open either the stable TV view or the experimental `/v2` TV view
 - switch the TV display between VU meters and the FFT spectrum analyzer
 - adjust lyric offset in 0.5 second steps
 - save the default lyric offset

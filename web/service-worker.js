@@ -1,9 +1,12 @@
-const CACHE_NAME = "vinyl-now-playing-v3";
+const CACHE_NAME = "vinyl-now-playing-v4";
 const SHELL_ASSETS = [
   "/",
+  "/v2",
   "/control",
   "/app.css",
   "/app.js",
+  "/app-v2.css",
+  "/app-v2.js",
   "/control.js",
   "/manifest.json",
   "/icon.svg"
@@ -35,7 +38,7 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() => caches.match("/"))
+      fetch(request).catch(() => caches.match(url.pathname.replace(/\/$/, "") === "/v2" ? "/v2" : "/"))
     );
     return;
   }
