@@ -21,7 +21,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.5.2"
+APP_VERSION = "0.5.3"
 
 
 def load_settings():

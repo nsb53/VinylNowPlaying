@@ -1,0 +1,19 @@
+{
+  "name": "Vinyl Control",
+  "short_name": "Vinyl Control",
+  "description": "Phone control page for the Vinyl Now Playing dashboard.",
+  "start_url": "/control",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0b09",
+  "theme_color": "#14100d",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

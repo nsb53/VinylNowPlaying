@@ -1,6 +1,6 @@
 # Vinyl Now Playing
 
-Current app version: `0.5.2`
+Current app version: `0.5.3`
 
 A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a USB audio input, identifies the current track, shows album art, displays lyrics from LRCLIB, and renders live stereo-style VU meters plus a thin LED waveform. It is designed to run as a fullscreen kiosk on a Raspberry Pi, with Mac support for development and testing.
 
@@ -78,6 +78,10 @@ Open the control page:
 ```text
 http://127.0.0.1:8765/control
 ```
+
+On iPhone, open `/control` in Safari and use Share -> Add to Home Screen.
+The control page has its own web app manifest so the saved icon opens back to
+`/control` instead of the TV dashboard.
 
 If your input device is not named `USB PnP Audio Device`, pass a device name substring:
 
