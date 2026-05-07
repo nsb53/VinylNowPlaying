@@ -21,7 +21,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.5.3"
+APP_VERSION = "0.5.4"
 
 
 def load_settings():
@@ -952,7 +952,7 @@ def main():
     parser.add_argument("--silence-hold-seconds", type=float, default=2.0)
     parser.add_argument("--manual-clear-silence-seconds", type=float, default=75.0)
     parser.add_argument("--now-playing-clear-silence-seconds", type=float, default=120.0)
-    parser.add_argument("--lyric-default-offset", type=float, default=11.0)
+    parser.add_argument("--lyric-default-offset", type=float, default=9.0)
     args = parser.parse_args()
     args.resolved_audio_backend = resolve_audio_backend(args)
 
