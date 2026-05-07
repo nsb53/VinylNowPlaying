@@ -21,7 +21,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.3.0"
+APP_VERSION = "0.4.0"
 
 
 def load_settings():
@@ -342,6 +342,9 @@ class NowPlayingService:
         lyric_default_offset = float(
             self.settings.get("defaultLyricOffsetSeconds", args.lyric_default_offset)
         )
+        meter_display_mode = self.settings.get("meterDisplayMode", "vu")
+        if meter_display_mode not in ("vu", "spectrum"):
+            meter_display_mode = "vu"
         self.args = args
         self.lock = threading.Lock()
         self.scan_requested = threading.Event()
@@ -370,6 +373,7 @@ class NowPlayingService:
                 "manualClearSilenceSeconds": args.manual_clear_silence_seconds,
                 "nowPlayingClearSilenceSeconds": args.now_playing_clear_silence_seconds,
                 "defaultLyricOffsetSeconds": lyric_default_offset,
+                "meterDisplayMode": meter_display_mode,
             }
         )
         self.state.lyricOffsetSeconds = lyric_default_offset
@@ -389,6 +393,7 @@ class NowPlayingService:
         with self.lock:
             return {
                 "defaultLyricOffsetSeconds": self.state.config["defaultLyricOffsetSeconds"],
+                "meterDisplayMode": self.state.config["meterDisplayMode"],
             }
 
     def update(self, **changes):
@@ -570,17 +575,21 @@ class NowPlayingService:
                 return
             self.set_manual_track_locked(self.state.manualIndex + 1)
 
-    def update_settings(self, default_lyric_offset=None):
+    def update_settings(self, default_lyric_offset=None, meter_display_mode=None):
         with self.lock:
             if default_lyric_offset is not None:
                 value = max(-30.0, min(60.0, float(default_lyric_offset)))
                 self.state.config["defaultLyricOffsetSeconds"] = value
                 self.state.lyricOffsetSeconds = value
                 self.settings["defaultLyricOffsetSeconds"] = value
+            if meter_display_mode in ("vu", "spectrum"):
+                self.state.config["meterDisplayMode"] = meter_display_mode
+                self.settings["meterDisplayMode"] = meter_display_mode
             save_settings(self.settings)
             self.write_state_locked()
             return {
                 "defaultLyricOffsetSeconds": self.state.config["defaultLyricOffsetSeconds"],
+                "meterDisplayMode": self.state.config["meterDisplayMode"],
             }
 
     def is_music_active(self):
@@ -866,7 +875,8 @@ class Handler(SimpleHTTPRequestHandler):
             except json.JSONDecodeError:
                 payload = {}
             result = self.service.update_settings(
-                default_lyric_offset=payload.get("defaultLyricOffsetSeconds")
+                default_lyric_offset=payload.get("defaultLyricOffsetSeconds"),
+                meter_display_mode=payload.get("meterDisplayMode"),
             )
             self.send_json({"ok": True, **result})
             return

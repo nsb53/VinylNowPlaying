@@ -12,6 +12,7 @@ const defaultOffsetEl = document.querySelector("#controlDefaultOffset");
 const lyricScrollEl = document.querySelector("#controlLyricScroll");
 const lyricButtons = document.querySelectorAll("[data-lyric-offset], [data-lyric-scroll], [data-lyric-reset]");
 const defaultButtons = document.querySelectorAll("[data-default-offset]");
+const meterModeButtons = document.querySelectorAll("[data-meter-mode]");
 const saveCurrentDefaultEl = document.querySelector("#saveCurrentDefault");
 const manualArtistEl = document.querySelector("#manualArtist");
 const manualAlbumEl = document.querySelector("#manualAlbum");
@@ -112,6 +113,9 @@ async function refreshControl() {
   lyricOffsetEl.textContent = `${Number(state.lyricOffsetSeconds || 0).toFixed(1)}s`;
   defaultOffsetEl.textContent = `${Number(state.config?.defaultLyricOffsetSeconds || 0).toFixed(1)}s`;
   lyricScrollEl.textContent = `${state.lyricScroll || 0}`;
+  meterModeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.meterMode === (state.config?.meterDisplayMode || "vu"));
+  });
   syncManualControls(state);
 }
 
@@ -166,6 +170,12 @@ defaultButtons.forEach((button) => {
 saveCurrentDefaultEl.addEventListener("click", () => {
   saveSettings({
     defaultLyricOffsetSeconds: Number(latestState?.lyricOffsetSeconds || 0),
+  });
+});
+
+meterModeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    saveSettings({ meterDisplayMode: button.dataset.meterMode });
   });
 });
 

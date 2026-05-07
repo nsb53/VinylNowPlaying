@@ -10,6 +10,7 @@ final class MeterState {
     var rightSquareSum = 0.0
     var leftPeak = 0
     var rightPeak = 0
+    var spectrumSamples: [Double] = []
     let windowSeconds: Double
     let stream: Bool
 
@@ -26,6 +27,7 @@ final class MeterState {
         rightSquareSum = 0.0
         leftPeak = 0
         rightPeak = 0
+        spectrumSamples.removeAll(keepingCapacity: true)
     }
 }
 
@@ -78,6 +80,91 @@ func db(_ value: Double) -> Double {
     value > 0 ? 20 * log10(value / 32768.0) : -120.0
 }
 
+func fft(real: inout [Double], imag: inout [Double]) {
+    let count = real.count
+    var j = 0
+    for index in 1..<count {
+        var bit = count >> 1
+        while j & bit != 0 {
+            j ^= bit
+            bit >>= 1
+        }
+        j ^= bit
+        if index < j {
+            real.swapAt(index, j)
+            imag.swapAt(index, j)
+        }
+    }
+
+    var length = 2
+    while length <= count {
+        let angle = -2.0 * Double.pi / Double(length)
+        let stepReal = cos(angle)
+        let stepImag = sin(angle)
+        var start = 0
+        while start < count {
+            var unitReal = 1.0
+            var unitImag = 0.0
+            for offset in 0..<(length / 2) {
+                let even = start + offset
+                let odd = even + length / 2
+                let oddReal = real[odd] * unitReal - imag[odd] * unitImag
+                let oddImag = real[odd] * unitImag + imag[odd] * unitReal
+                real[odd] = real[even] - oddReal
+                imag[odd] = imag[even] - oddImag
+                real[even] += oddReal
+                imag[even] += oddImag
+
+                let nextReal = unitReal * stepReal - unitImag * stepImag
+                let nextImag = unitReal * stepImag + unitImag * stepReal
+                unitReal = nextReal
+                unitImag = nextImag
+            }
+            start += length
+        }
+        length <<= 1
+    }
+}
+
+func spectrumBands(from samples: [Double], sampleRate: Double, bandCount: Int = 32) -> [Double] {
+    let fftSize = 2048
+    guard samples.count >= fftSize else {
+        return Array(repeating: 0.0, count: bandCount)
+    }
+
+    let source = Array(samples.suffix(fftSize))
+    var real = Array(repeating: 0.0, count: fftSize)
+    var imag = Array(repeating: 0.0, count: fftSize)
+    for index in 0..<fftSize {
+        let window = 0.5 - 0.5 * cos(2.0 * Double.pi * Double(index) / Double(fftSize - 1))
+        real[index] = source[index] * window
+    }
+
+    fft(real: &real, imag: &imag)
+
+    let minFrequency = 60.0
+    let maxFrequency = min(16_000.0, sampleRate / 2.0)
+    let logMin = log10(minFrequency)
+    let logMax = log10(maxFrequency)
+    let fullScaleMagnitude = 32768.0 * Double(fftSize) * 0.25
+
+    return (0..<bandCount).map { band in
+        let lowerFrequency = pow(10.0, logMin + (logMax - logMin) * Double(band) / Double(bandCount))
+        let upperFrequency = pow(10.0, logMin + (logMax - logMin) * Double(band + 1) / Double(bandCount))
+        let lowerBin = max(1, Int((lowerFrequency / sampleRate) * Double(fftSize)))
+        let upperBin = min(fftSize / 2 - 1, max(lowerBin, Int((upperFrequency / sampleRate) * Double(fftSize))))
+        var sum = 0.0
+        var count = 0
+        for bin in lowerBin...upperBin {
+            sum += hypot(real[bin], imag[bin])
+            count += 1
+        }
+        let average = count > 0 ? sum / Double(count) : 0.0
+        let dbValue = average > 0 ? 20.0 * log10(average / fullScaleMagnitude) : -120.0
+        return max(0.0, min(1.0, (dbValue + 78.0) / 66.0))
+    }
+}
+
 func report(_ state: MeterState, json: Bool) {
     let leftRms = state.leftSampleCount > 0 ? sqrt(state.leftSquareSum / Double(state.leftSampleCount)) : 0
     let rightRms = state.rightSampleCount > 0 ? sqrt(state.rightSquareSum / Double(state.rightSampleCount)) : 0
@@ -90,15 +177,18 @@ func report(_ state: MeterState, json: Bool) {
     let leftPeakDb = db(Double(state.leftPeak))
     let rightPeakDb = db(Double(state.rightPeak))
     let peakDb = max(leftPeakDb, rightPeakDb)
+    let bands = spectrumBands(from: state.spectrumSamples, sampleRate: 48_000)
+    let bandJson = bands.map { String(format: "%.3f", $0) }.joined(separator: ",")
 
     if json {
-        print(String(format: "{\"rmsDb\":%.1f,\"peakDb\":%.1f,\"leftRmsDb\":%.1f,\"leftPeakDb\":%.1f,\"rightRmsDb\":%.1f,\"rightPeakDb\":%.1f}",
+        print(String(format: "{\"rmsDb\":%.1f,\"peakDb\":%.1f,\"leftRmsDb\":%.1f,\"leftPeakDb\":%.1f,\"rightRmsDb\":%.1f,\"rightPeakDb\":%.1f,\"spectrumBands\":[%@]}",
                      rmsDb,
                      peakDb,
                      leftRmsDb,
                      leftPeakDb,
                      rightRmsDb,
-                     rightPeakDb))
+                     rightPeakDb,
+                     bandJson))
         fflush(stdout)
     } else {
         print("leftSamples=\(state.leftSampleCount) rightSamples=\(state.rightSampleCount)")
@@ -108,6 +198,7 @@ func report(_ state: MeterState, json: Bool) {
                      leftPeakDb,
                      rightRmsDb,
                      rightPeakDb))
+        print("spectrumBands=[\(bandJson)]")
     }
 }
 
@@ -142,6 +233,15 @@ let callback: AudioQueueInputCallback = { userData, queue, buffer, _, _, _ in
             state.rightSquareSum += Double(sample * sample)
             state.rightSampleCount += 1
         }
+    }
+    var frameIndex = 0
+    while frameIndex + 1 < sampleTotal {
+        let mono = (Double(samples[frameIndex]) + Double(samples[frameIndex + 1])) * 0.5
+        state.spectrumSamples.append(mono)
+        frameIndex += 2
+    }
+    if state.spectrumSamples.count > 4096 {
+        state.spectrumSamples.removeFirst(state.spectrumSamples.count - 4096)
     }
 
     if state.stream && Date().timeIntervalSince(state.windowStartedAt) >= state.windowSeconds {

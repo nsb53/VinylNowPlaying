@@ -18,6 +18,8 @@ const els = {
   leftDb: document.querySelector("#leftDb"),
   rightDb: document.querySelector("#rightDb"),
   waveform: document.querySelector("#waveform"),
+  spectrum: document.querySelector("#spectrum"),
+  spectrumWrap: document.querySelector("#spectrumWrap"),
   lyricsMode: document.querySelector("#lyricsMode"),
   lyricsSource: document.querySelector("#lyricsSource"),
   lyricsText: document.querySelector("#lyricsText"),
@@ -36,6 +38,12 @@ const waveformState = {
   points: Array.from({ length: 120 }, () => 0),
   floor: -50,
   ceiling: -8,
+  lastPaint: 0,
+};
+
+const spectrumState = {
+  bands: Array.from({ length: 32 }, () => 0),
+  display: Array.from({ length: 32 }, () => 0),
   lastPaint: 0,
 };
 
@@ -217,6 +225,13 @@ function renderLevel(level) {
   const amplitude = clamp((levelDb - waveformState.floor) / span, 0.03, 0.94);
   waveformState.points.push(amplitude);
   waveformState.points.shift();
+
+  if (Array.isArray(level?.spectrumBands) && level.spectrumBands.length) {
+    spectrumState.bands = level.spectrumBands.map((value) => clamp(Number(value) || 0, 0, 1));
+    if (spectrumState.display.length !== spectrumState.bands.length) {
+      spectrumState.display = Array.from({ length: spectrumState.bands.length }, () => 0);
+    }
+  }
 }
 
 function approach(current, target, deltaSeconds) {
@@ -294,6 +309,56 @@ function drawWaveform() {
 
 }
 
+function drawSpectrum() {
+  const canvas = els.spectrum;
+  if (!canvas || els.spectrumWrap?.classList.contains("hidden")) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const scale = Math.min(window.devicePixelRatio || 1, 1.5);
+  const width = Math.max(1, Math.floor(rect.width * scale));
+  const height = Math.max(1, Math.floor(rect.height * scale));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = "#161513";
+  ctx.fillRect(0, 0, width, height);
+
+  const bands = spectrumState.bands;
+  const gap = Math.max(2 * scale, width * 0.004);
+  const barWidth = Math.max(3 * scale, (width - gap * (bands.length - 1)) / Math.max(1, bands.length));
+  const bottom = height - 12 * scale;
+  const maxBarHeight = height - 28 * scale;
+
+  bands.forEach((target, index) => {
+    const current = spectrumState.display[index] ?? 0;
+    const rising = target > current;
+    const rate = rising ? 0.45 : 0.12;
+    const value = current + (target - current) * rate;
+    spectrumState.display[index] = value;
+
+    const shaped = Math.pow(clamp(value, 0, 1), 1.35);
+    const barHeight = Math.max(2 * scale, shaped * maxBarHeight);
+    const x = index * (barWidth + gap);
+    const y = bottom - barHeight;
+    const hueBlend = index / Math.max(1, bands.length - 1);
+    const hot = shaped > 0.78;
+
+    const gradient = ctx.createLinearGradient(0, bottom, 0, y);
+    gradient.addColorStop(0, "rgba(127, 199, 182, 0.88)");
+    gradient.addColorStop(0.62, `rgba(231, 200, 111, ${0.72 + hueBlend * 0.18})`);
+    gradient.addColorStop(1, hot ? "rgba(223, 123, 104, 0.95)" : "rgba(244, 240, 232, 0.86)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, y, barWidth, barHeight);
+
+    ctx.fillStyle = "rgba(244, 240, 232, 0.16)";
+    ctx.fillRect(x, Math.max(0, y - 3 * scale), barWidth, Math.max(1, 2 * scale));
+  });
+}
+
 function render(data) {
   const previousTrackId = latestState?.current?.id;
   latestState = data;
@@ -304,6 +369,10 @@ function render(data) {
   els.statusText.textContent = data.message || data.status || "Listening";
   els.versionText.textContent = `v${data.config?.appVersion || "-"}`;
   els.statusDot.classList.toggle("error", data.status === "error");
+  const meterDisplayMode = data.config?.meterDisplayMode || "vu";
+  els.spectrumWrap?.classList.toggle("hidden", meterDisplayMode !== "spectrum");
+  els.meterLeft?.classList.toggle("hidden", meterDisplayMode === "spectrum");
+  els.meterRight?.classList.toggle("hidden", meterDisplayMode === "spectrum");
 
   if (track) {
     els.title.textContent = track.title || "Unknown Title";
@@ -349,6 +418,7 @@ animateMeters();
 drawWaveform();
 setInterval(animateMeters, 100);
 setInterval(drawWaveform, 250);
+setInterval(drawSpectrum, 80);
 setInterval(refresh, 5000);
 setInterval(refreshLevel, 250);
 setInterval(refreshSyncedLyrics, 500);
