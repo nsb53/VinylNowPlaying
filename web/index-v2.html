@@ -16,22 +16,70 @@
   </head>
   <body class="v2-page">
     <main class="v2-shell">
-      <header class="v2-status" aria-live="polite">
-        <div class="v2-status-line">
-          <span id="statusDot" class="v2-status-dot"></span>
-          <span id="statusText">Starting</span>
-        </div>
-        <span id="versionText" class="v2-version">v-</span>
-      </header>
-
       <section class="v2-main">
-        <section class="v2-track">
+        <section class="v2-visual-stack" aria-label="Audio visualization">
           <div class="v2-art-wrap">
             <img id="cover" class="v2-cover hidden" alt="Album cover">
             <div id="recordFallback" class="v2-record-fallback" aria-hidden="true">
               <div class="v2-record-core"></div>
             </div>
           </div>
+
+          <div class="v2-waveform-wrap">
+            <canvas id="waveform" class="v2-waveform" aria-label="Live waveform"></canvas>
+          </div>
+
+          <div class="v2-meter-area">
+            <div id="spectrumWrap" class="v2-spectrum-wrap hidden">
+              <canvas id="spectrum" class="v2-spectrum" aria-label="Live spectrum analyzer"></canvas>
+            </div>
+            <div id="meterLeft" class="v2-vu-meter">
+              <div class="v2-vu-face">
+                <div class="v2-vu-scale">
+                  <span>-40</span>
+                  <span>-20</span>
+                  <span>-10</span>
+                  <span>-3</span>
+                  <span>0</span>
+                </div>
+                <div class="v2-vu-arc"></div>
+                <div id="needleLeft" class="v2-vu-needle"></div>
+                <div class="v2-vu-pivot"></div>
+              </div>
+              <div class="v2-vu-label">
+                <span>L</span>
+                <strong id="leftDb">-</strong>
+              </div>
+            </div>
+            <div id="meterRight" class="v2-vu-meter">
+              <div class="v2-vu-face">
+                <div class="v2-vu-scale">
+                  <span>-40</span>
+                  <span>-20</span>
+                  <span>-10</span>
+                  <span>-3</span>
+                  <span>0</span>
+                </div>
+                <div class="v2-vu-arc"></div>
+                <div id="needleRight" class="v2-vu-needle"></div>
+                <div class="v2-vu-pivot"></div>
+              </div>
+              <div class="v2-vu-label">
+                <span>R</span>
+                <strong id="rightDb">-</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="v2-track">
+          <header class="v2-status" aria-live="polite">
+            <div class="v2-status-line">
+              <span id="statusDot" class="v2-status-dot"></span>
+              <span id="statusText">Starting</span>
+            </div>
+            <span id="versionText" class="v2-version">v-</span>
+          </header>
           <div class="v2-track-copy">
             <p id="artist" class="v2-artist">Waiting for the first recognition pass.</p>
             <h1 id="title">Listening...</h1>
@@ -66,51 +114,6 @@
           </div>
           <div id="lyricsText" class="v2-lyrics-text">Lyrics will appear here when LRCLIB has a match.</div>
         </section>
-      </section>
-
-      <section class="v2-visuals" aria-label="Audio visualization">
-        <div class="v2-waveform-wrap">
-          <canvas id="waveform" class="v2-waveform" aria-label="Live waveform"></canvas>
-        </div>
-        <div id="spectrumWrap" class="v2-spectrum-wrap hidden">
-          <canvas id="spectrum" class="v2-spectrum" aria-label="Live spectrum analyzer"></canvas>
-        </div>
-        <div id="meterLeft" class="v2-vu-meter">
-          <div class="v2-vu-face">
-            <div class="v2-vu-scale">
-              <span>-40</span>
-              <span>-20</span>
-              <span>-10</span>
-              <span>-3</span>
-              <span>0</span>
-            </div>
-            <div class="v2-vu-arc"></div>
-            <div id="needleLeft" class="v2-vu-needle"></div>
-            <div class="v2-vu-pivot"></div>
-          </div>
-          <div class="v2-vu-label">
-            <span>L</span>
-            <strong id="leftDb">-</strong>
-          </div>
-        </div>
-        <div id="meterRight" class="v2-vu-meter">
-          <div class="v2-vu-face">
-            <div class="v2-vu-scale">
-              <span>-40</span>
-              <span>-20</span>
-              <span>-10</span>
-              <span>-3</span>
-              <span>0</span>
-            </div>
-            <div class="v2-vu-arc"></div>
-            <div id="needleRight" class="v2-vu-needle"></div>
-            <div class="v2-vu-pivot"></div>
-          </div>
-          <div class="v2-vu-label">
-            <span>R</span>
-            <strong id="rightDb">-</strong>
-          </div>
-        </div>
       </section>
     </main>
     <script src="/app-v2.js"></script>

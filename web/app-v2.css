@@ -33,9 +33,7 @@
 .v2-shell {
   height: 100vh;
   padding: clamp(16px, 1.8vw, 34px);
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(168px, 22vh);
-  gap: clamp(12px, 1.6vh, 20px);
+  display: block;
 }
 
 .v2-status {
@@ -82,25 +80,37 @@
 }
 
 .v2-main {
+  height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(280px, 33vw) minmax(0, 1fr);
-  gap: clamp(18px, 2.4vw, 40px);
-  align-items: stretch;
+  grid-template-columns: minmax(460px, min(36vw, 680px)) minmax(300px, 0.68fr) minmax(360px, 1fr);
+  gap: clamp(18px, 2vw, 32px);
+  align-items: center;
+}
+
+.v2-visual-stack {
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  max-height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, auto) clamp(58px, 7vh, 86px) clamp(152px, 19vh, 218px);
+  gap: clamp(10px, 1.25vh, 16px);
+  align-content: center;
 }
 
 .v2-track {
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, auto) auto auto;
-  align-content: start;
-  gap: clamp(12px, 1.6vh, 20px);
+  grid-template-rows: auto minmax(0, auto) auto;
+  align-content: center;
+  gap: clamp(18px, 2.4vh, 30px);
 }
 
 .v2-art-wrap {
-  width: min(100%, 31vw, 47vh);
-  max-height: 47vh;
+  width: 100%;
+  max-height: min(64vh, calc(100vh - clamp(16px, 1.8vw, 34px) * 2 - clamp(58px, 7vh, 86px) - clamp(152px, 19vh, 218px) - clamp(10px, 1.25vh, 16px) * 2));
   aspect-ratio: 1;
   justify-self: center;
   position: relative;
@@ -138,31 +148,30 @@
 
 .v2-track-copy {
   min-width: 0;
-  text-align: center;
+  text-align: left;
 }
 
 .v2-artist {
   margin: 0;
   color: var(--v2-muted);
-  font-size: clamp(1rem, 1.45vw, 1.45rem);
+  font-size: clamp(1.05rem, 1.55vw, 1.65rem);
   line-height: 1.25;
   overflow-wrap: anywhere;
 }
 
 .v2-track-copy h1 {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   color: var(--v2-text);
-  font-size: clamp(1.7rem, 3vw, 3.65rem);
+  font-size: clamp(2rem, 3.7vw, 4.85rem);
   line-height: 1.02;
   letter-spacing: 0;
   overflow-wrap: anywhere;
-  text-wrap: balance;
 }
 
 .v2-meta {
   margin: 0;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 }
 
@@ -183,7 +192,7 @@
 .v2-meta dd {
   margin: 5px 0 0;
   color: var(--v2-text);
-  font-size: clamp(0.9rem, 1.15vw, 1.05rem);
+  font-size: clamp(1rem, 1.35vw, 1.2rem);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -277,14 +286,6 @@
   color: #d6b758;
 }
 
-.v2-visuals {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(220px, 0.72fr) repeat(2, minmax(260px, 1fr));
-  gap: clamp(12px, 1.4vw, 18px);
-  align-items: stretch;
-}
-
 .v2-waveform-wrap,
 .v2-spectrum-wrap,
 .v2-vu-meter {
@@ -308,10 +309,17 @@
 }
 
 .v2-spectrum-wrap {
-  grid-column: 2 / -1;
+  grid-column: 1 / -1;
   background:
     radial-gradient(circle at 50% 100%, rgb(127 199 182 / 12%) 0, transparent 64%),
     var(--v2-panel);
+}
+
+.v2-meter-area {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(10px, 1.25vw, 14px);
 }
 
 .v2-vu-meter {
@@ -441,17 +449,27 @@
   .v2-shell {
     height: auto;
     min-height: 100vh;
-    grid-template-rows: auto auto auto;
+    display: block;
   }
 
   .v2-main,
-  .v2-visuals {
+  .v2-meter-area {
     grid-template-columns: 1fr;
   }
 
   .v2-art-wrap {
-    width: min(100%, 420px);
+    width: min(100%, 520px);
     max-height: none;
+  }
+
+  .v2-visual-stack {
+    width: min(100%, 520px);
+    justify-self: center;
+    grid-template-rows: auto 90px auto;
+  }
+
+  .v2-track-copy {
+    text-align: center;
   }
 
   .v2-lyrics-text {
