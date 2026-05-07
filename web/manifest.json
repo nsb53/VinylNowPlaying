@@ -1,0 +1,19 @@
+{
+  "name": "Vinyl Now Playing",
+  "short_name": "Vinyl",
+  "description": "Local now-playing dashboard for a vinyl listening setup.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0d0b09",
+  "theme_color": "#14100d",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
