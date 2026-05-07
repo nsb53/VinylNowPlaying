@@ -21,6 +21,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
+APP_VERSION = "0.3.0"
 
 
 def load_settings():
@@ -355,6 +356,7 @@ class NowPlayingService:
         self.state = DashboardState(
             config={
                 "device": audio_device(args),
+                "appVersion": APP_VERSION,
                 "audioBackend": args.resolved_audio_backend,
                 "intervalSeconds": args.interval,
                 "primarySampleSeconds": args.primary_seconds,
@@ -371,6 +373,9 @@ class NowPlayingService:
             }
         )
         self.state.lyricOffsetSeconds = lyric_default_offset
+
+    def idle_message(self):
+        return "Detected silence" if self.track_gap_cleared else "Waiting for music"
 
     def snapshot(self):
         with self.lock:
@@ -481,7 +486,7 @@ class NowPlayingService:
         self.state.lyricOffsetSeconds = self.state.config["defaultLyricOffsetSeconds"]
         self.state.lyricScroll = 0
         self.state.status = "idle"
-        self.state.message = "Track gap detected"
+        self.state.message = "Detected silence"
         self.state.nextScanAt = None
         self.write_state_locked()
         return True
@@ -653,7 +658,7 @@ class NowPlayingService:
             if not manual and not self.is_music_active():
                 self.update(
                     status="idle",
-                    message="Waiting for music",
+                    message=self.idle_message(),
                     nextScanAt=None,
                     error=None,
                 )
@@ -720,7 +725,7 @@ class NowPlayingService:
                 with self.lock:
                     manual_mode = self.state.manualMode
                 if not manual_mode:
-                    self.update(status="idle", message="Waiting for music", nextScanAt=None, error=None)
+                    self.update(status="idle", message=self.idle_message(), nextScanAt=None, error=None)
                 while not self.stop_requested.is_set() and not self.is_music_active():
                     self.advance_manual_if_needed()
                     with self.lock:
@@ -751,7 +756,7 @@ class NowPlayingService:
                         with self.lock:
                             manual_mode = self.state.manualMode
                         if not manual_mode:
-                            self.update(status="idle", message="Waiting for music", nextScanAt=None)
+                            self.update(status="idle", message=self.idle_message(), nextScanAt=None)
                         break
                 self.scan_requested.clear()
 

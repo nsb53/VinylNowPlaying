@@ -1,4 +1,5 @@
 const statusEl = document.querySelector("#controlStatus");
+const versionEl = document.querySelector("#controlVersion");
 const titleEl = document.querySelector("#controlTitle");
 const artistEl = document.querySelector("#controlArtist");
 const scanEl = document.querySelector("#controlScan");
@@ -101,6 +102,7 @@ async function refreshControl() {
   latestState = state;
   const track = state.current;
   statusEl.textContent = state.message || state.status || "Listening";
+  versionEl.textContent = `v${state.config?.appVersion || "-"}`;
   titleEl.textContent = track?.title || "Listening...";
   artistEl.textContent = track?.artist || "Waiting for recognition.";
   nextEl.textContent = timeUntil(state.nextScanAt);

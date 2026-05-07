@@ -3,6 +3,7 @@ const els = {
   recordFallback: document.querySelector("#recordFallback"),
   statusDot: document.querySelector("#statusDot"),
   statusText: document.querySelector("#statusText"),
+  versionText: document.querySelector("#versionText"),
   title: document.querySelector("#title"),
   artist: document.querySelector("#artist"),
   album: document.querySelector("#album"),
@@ -301,6 +302,7 @@ function render(data) {
   }
   const track = data.current;
   els.statusText.textContent = data.message || data.status || "Listening";
+  els.versionText.textContent = `v${data.config?.appVersion || "-"}`;
   els.statusDot.classList.toggle("error", data.status === "error");
 
   if (track) {
