@@ -191,7 +191,7 @@ function clamp(value, min, max) {
 }
 
 function dbToNeedle(db) {
-  const normalized = clamp((db + 50) / 40, 0, 1);
+  const normalized = clamp((db + 62) / 42, 0, 1);
   return -42 + normalized * 84;
 }
 
@@ -227,7 +227,10 @@ function renderLevel(level) {
   waveformState.points.shift();
 
   if (Array.isArray(level?.spectrumBands) && level.spectrumBands.length) {
-    spectrumState.bands = level.spectrumBands.map((value) => clamp(Number(value) || 0, 0, 1));
+    spectrumState.bands = level.spectrumBands.map((value) => {
+      const boosted = Math.pow(clamp(Number(value) || 0, 0, 1), 0.62) * 1.24;
+      return clamp(boosted, 0, 1);
+    });
     if (spectrumState.display.length !== spectrumState.bands.length) {
       spectrumState.display = Array.from({ length: spectrumState.bands.length }, () => 0);
     }
@@ -253,8 +256,8 @@ function animateMeters() {
   els.leftDb.textContent = formatDb(meterState.leftDisplay);
   els.rightDb.textContent = formatDb(meterState.rightDisplay);
 
-  const leftGlow = clamp((meterState.leftDisplay + 44) / 34, 0, 1);
-  const rightGlow = clamp((meterState.rightDisplay + 44) / 34, 0, 1);
+  const leftGlow = clamp((meterState.leftDisplay + 56) / 42, 0, 1);
+  const rightGlow = clamp((meterState.rightDisplay + 56) / 42, 0, 1);
   els.meterLeft?.style.setProperty("--vu-glow-alpha", (leftGlow * 0.62).toFixed(3));
   els.meterLeft?.style.setProperty("--vu-glow-size", `${42 + leftGlow * 32}%`);
   els.meterRight?.style.setProperty("--vu-glow-alpha", (rightGlow * 0.62).toFixed(3));
@@ -340,7 +343,7 @@ function drawSpectrum() {
     const value = current + (target - current) * rate;
     spectrumState.display[index] = value;
 
-    const shaped = Math.pow(clamp(value, 0, 1), 1.35);
+    const shaped = Math.pow(clamp(value, 0, 1), 0.86);
     const barHeight = Math.max(2 * scale, shaped * maxBarHeight);
     const x = index * (barWidth + gap);
     const y = bottom - barHeight;

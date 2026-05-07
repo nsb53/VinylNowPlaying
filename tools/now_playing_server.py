@@ -42,6 +42,13 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def log_event(event, **fields):
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    details = " ".join(f"{key}={value}" for key, value in fields.items() if value is not None)
+    suffix = f" {details}" if details else ""
+    print(f"[{timestamp}] [{event}]{suffix}", flush=True)
+
+
 def resolve_audio_backend(args):
     if args.audio_backend != "auto":
         return args.audio_backend
@@ -224,16 +231,26 @@ def lookup_lyrics(track):
         "https://lrclib.net/api/search?" + urlencode(params),
         headers={"User-Agent": "vinyl-now-playing-prototype/0.1 (local dashboard)"},
     )
+    log_event("lyrics", action="search", artist=track.get("artist", ""), title=track.get("title", ""))
     with urlopen(request, timeout=12) as response:
         candidates = json.load(response)
 
     if not candidates:
+        log_event("lyrics", result="no_candidates")
         return None
 
     best = max(candidates, key=lambda candidate: lyrics_score(track, candidate))
     if not best.get("plainLyrics") and not best.get("syncedLyrics") and not best.get("instrumental"):
+        log_event("lyrics", result="no_lyrics")
         return None
 
+    log_event(
+        "lyrics",
+        result="matched",
+        lrclib_id=best.get("id"),
+        synced=bool(best.get("syncedLyrics")),
+        plain=bool(best.get("plainLyrics")),
+    )
     return {
         "id": best.get("id"),
         "source": "LRCLIB",
@@ -622,6 +639,7 @@ class NowPlayingService:
             ):
                 self.clear_now_playing_for_track_gap_locked()
                 self.track_gap_cleared = True
+                log_event("audio", event="silence_detected", seconds=round(silence_seconds, 2))
 
             if self.last_loud_at is None or now - self.last_loud_at > self.args.silence_hold_seconds:
                 self.music_active_since = None
@@ -632,24 +650,40 @@ class NowPlayingService:
     def capture(self, seconds):
         sample_path = ROOT / "captures" / f"dashboard-{int(time.time())}-{seconds}s.wav"
         command = capture_command(self.args, sample_path, seconds)
+        log_event("capture", action="start", seconds=seconds, path=str(sample_path.relative_to(ROOT)))
         with self.audio_lock:
             result = run_command(command, timeout=seconds + 20)
         if result.returncode != 0:
+            log_event("capture", action="failed", code=result.returncode)
             raise RuntimeError(result.stderr.strip() or result.stdout.strip())
-        return sample_path, parse_level(result.stdout + result.stderr)
+        levels = parse_level(result.stdout + result.stderr)
+        log_event(
+            "capture",
+            action="done",
+            seconds=seconds,
+            rms=levels.get("rmsDb"),
+            peak=levels.get("peakDb"),
+        )
+        return sample_path, levels
 
     def identify(self, sample_path):
         command = [sys.executable, "tools/identify_shazam.py", str(sample_path), "--json"]
+        log_event("shazam", action="start", sample=str(sample_path.relative_to(ROOT)))
         result = run_command(command, timeout=45, low_priority=True)
         if result.returncode != 0:
+            log_event("shazam", action="failed", code=result.returncode)
             raise RuntimeError(result.stderr.strip() or result.stdout.strip())
         track = track_from_shazam(json.loads(result.stdout))
         if track:
+            log_event("shazam", action="matched", artist=track.get("artist"), title=track.get("title"))
             try:
                 track["lyrics"] = lookup_lyrics(track)
             except Exception as exc:
                 track["lyrics"] = None
                 track["lyricsError"] = str(exc)
+                log_event("lyrics", result="error", error=str(exc))
+        else:
+            log_event("shazam", action="no_match")
         return track
 
     def scan_once(self, manual=False):
@@ -674,6 +708,7 @@ class NowPlayingService:
                 return
 
             started_at = utc_now()
+            log_event("scan", action="start", manual=manual, primary_seconds=self.args.primary_seconds)
             self.update(
                 status="listening",
                 message=f"Capturing a {self.args.primary_seconds} second sample",
@@ -718,13 +753,22 @@ class NowPlayingService:
                         self.state.lyricScroll = 0
                     self.state.status = "matched"
                     self.state.message = "Updated now playing" if changed else "Same track still playing"
+                    log_event(
+                        "scan",
+                        action="done",
+                        result="matched",
+                        changed=changed,
+                        sample_seconds=used_seconds,
+                    )
                 else:
                     self.state.status = "no_match"
                     self.state.message = "No match from the latest sample"
+                    log_event("scan", action="done", result="no_match", sample_seconds=used_seconds)
                 self.state.error = None
                 self.write_state_locked()
         except Exception as exc:
             self.update(status="error", message="Recognition failed", error=str(exc))
+            log_event("scan", action="error", error=str(exc))
         finally:
             self.scanning.release()
 
