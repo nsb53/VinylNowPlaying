@@ -927,6 +927,8 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_json({"error": "not found"}, status=404)
 
     def log_message(self, format, *args):
+        if self.path.startswith("/api/level"):
+            return
         print(f"[http] {self.address_string()} {format % args}")
 
 
