@@ -702,13 +702,6 @@ button,
   min-width: min(100%, 360px);
 }
 
-.control-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
 .segmented-control {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(96px, 1fr));
@@ -749,10 +742,6 @@ button,
   .control-card .secondary {
     justify-content: center;
     width: 100%;
-  }
-
-  .control-links {
-    display: grid;
   }
 
   .control-buttons {

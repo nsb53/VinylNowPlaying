@@ -21,7 +21,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.5.1"
+APP_VERSION = "0.5.2"
 
 
 def load_settings():
@@ -854,8 +854,6 @@ class Handler(SimpleHTTPRequestHandler):
         parsed = urlparse(path)
         if parsed.path == "/":
             return str(WEB_ROOT / "index.html")
-        if parsed.path.rstrip("/") == "/v2":
-            return str(WEB_ROOT / "index-v2.html")
         if parsed.path == "/control":
             return str(WEB_ROOT / "control.html")
         return str(WEB_ROOT / parsed.path.lstrip("/"))
