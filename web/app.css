@@ -33,7 +33,7 @@ body {
   height: 100%;
   display: grid;
   grid-template-columns: minmax(340px, 38vw) minmax(0, 0.85fr) minmax(320px, 24vw);
-  grid-template-rows: auto minmax(0, auto) minmax(0, auto);
+  grid-template-rows: auto minmax(0, 1fr);
   align-items: center;
   align-content: center;
   gap: clamp(12px, 1.6vw, 24px) clamp(18px, 2vw, 34px);
@@ -55,13 +55,25 @@ body {
   justify-content: center;
 }
 
-.art-wrap {
+.visual-panel {
   grid-column: 1;
   grid-row: 2;
-  width: min(100%, 45vh, 30vw);
+  min-height: 0;
+  max-height: 100%;
+  width: min(100%, 88vh, 38vw);
+  justify-self: center;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(10px, 1.2vh, 16px);
+}
+
+.art-wrap {
+  width: min(100%, 38vh, 28vw);
   aspect-ratio: 1;
   position: relative;
   justify-self: center;
+  min-height: 0;
 }
 
 .cover,
@@ -100,7 +112,7 @@ body {
 
 .track-panel {
   grid-column: 2;
-  grid-row: 2 / span 2;
+  grid-row: 2;
   max-width: none;
   min-width: 0;
   min-height: 0;
@@ -204,10 +216,8 @@ button,
 }
 
 .vu-panel {
-  grid-column: 1;
-  grid-row: 3;
-  width: min(100%, 88vh, 38vw);
-  justify-self: center;
+  width: 100%;
+  min-width: 0;
   margin-top: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(220px, 1fr));
@@ -216,7 +226,7 @@ button,
 
 .waveform-wrap {
   grid-column: 1 / -1;
-  height: clamp(58px, 8vh, 110px);
+  height: clamp(52px, 7vh, 88px);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
@@ -232,7 +242,7 @@ button,
 
 .spectrum-wrap {
   grid-column: 1 / -1;
-  height: clamp(210px, 28vh, 330px);
+  height: clamp(170px, 24vh, 260px);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
@@ -269,7 +279,7 @@ button,
 }
 
 .vu-face {
-  height: clamp(112px, 14vh, 170px);
+  height: clamp(96px, 12vh, 140px);
   position: relative;
   z-index: 1;
   overflow: hidden;
@@ -466,7 +476,7 @@ button,
 
 .side-panel {
   grid-column: 3;
-  grid-row: 1 / span 3;
+  grid-row: 1 / span 2;
   min-width: 0;
   min-height: 0;
   display: block;
@@ -517,6 +527,7 @@ button,
   }
 
   .title-panel,
+  .visual-panel,
   .track-panel,
   .vu-panel {
     grid-column: auto;

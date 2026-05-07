@@ -28,57 +28,59 @@
             <p id="artist">Waiting for the first recognition pass.</p>
           </section>
 
-          <div class="art-wrap">
-            <img id="cover" class="cover hidden" alt="Album cover">
-            <div id="recordFallback" class="record-fallback" aria-hidden="true">
-              <div class="record-core"></div>
-            </div>
-          </div>
-
-          <section class="vu-panel" aria-label="Audio levels">
-            <div class="waveform-wrap">
-              <canvas id="waveform" class="waveform" aria-label="Live waveform"></canvas>
-            </div>
-            <div class="spectrum-wrap hidden" id="spectrumWrap">
-              <canvas id="spectrum" class="spectrum" aria-label="Live spectrum analyzer"></canvas>
-            </div>
-            <div class="vu-meter">
-              <div class="vu-face">
-                <div class="vu-scale">
-                  <span>-40</span>
-                  <span>-20</span>
-                  <span>-10</span>
-                  <span>-3</span>
-                  <span>0</span>
-                </div>
-                <div class="vu-arc"></div>
-                <div id="needleLeft" class="vu-needle"></div>
-                <div class="vu-pivot"></div>
-              </div>
-              <div class="vu-label">
-                <span>L</span>
-                <strong id="leftDb">-</strong>
+          <section class="visual-panel">
+            <div class="art-wrap">
+              <img id="cover" class="cover hidden" alt="Album cover">
+              <div id="recordFallback" class="record-fallback" aria-hidden="true">
+                <div class="record-core"></div>
               </div>
             </div>
 
-            <div class="vu-meter">
-              <div class="vu-face">
-                <div class="vu-scale">
-                  <span>-40</span>
-                  <span>-20</span>
-                  <span>-10</span>
-                  <span>-3</span>
-                  <span>0</span>
+            <section class="vu-panel" aria-label="Audio levels">
+              <div class="waveform-wrap">
+                <canvas id="waveform" class="waveform" aria-label="Live waveform"></canvas>
+              </div>
+              <div class="spectrum-wrap hidden" id="spectrumWrap">
+                <canvas id="spectrum" class="spectrum" aria-label="Live spectrum analyzer"></canvas>
+              </div>
+              <div class="vu-meter">
+                <div class="vu-face">
+                  <div class="vu-scale">
+                    <span>-40</span>
+                    <span>-20</span>
+                    <span>-10</span>
+                    <span>-3</span>
+                    <span>0</span>
+                  </div>
+                  <div class="vu-arc"></div>
+                  <div id="needleLeft" class="vu-needle"></div>
+                  <div class="vu-pivot"></div>
                 </div>
-                <div class="vu-arc"></div>
-                <div id="needleRight" class="vu-needle"></div>
-                <div class="vu-pivot"></div>
+                <div class="vu-label">
+                  <span>L</span>
+                  <strong id="leftDb">-</strong>
+                </div>
               </div>
-              <div class="vu-label">
-                <span>R</span>
-                <strong id="rightDb">-</strong>
+
+              <div class="vu-meter">
+                <div class="vu-face">
+                  <div class="vu-scale">
+                    <span>-40</span>
+                    <span>-20</span>
+                    <span>-10</span>
+                    <span>-3</span>
+                    <span>0</span>
+                  </div>
+                  <div class="vu-arc"></div>
+                  <div id="needleRight" class="vu-needle"></div>
+                  <div class="vu-pivot"></div>
+                </div>
+                <div class="vu-label">
+                  <span>R</span>
+                  <strong id="rightDb">-</strong>
+                </div>
               </div>
-            </div>
+            </section>
           </section>
 
           <section class="track-panel">
