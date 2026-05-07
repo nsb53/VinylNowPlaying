@@ -1,6 +1,6 @@
 # Vinyl Now Playing
 
-Current app version: `0.5.4`
+Current app version: `0.5.5`
 
 A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a USB audio input, identifies the current track, shows album art, displays lyrics from LRCLIB, and renders live stereo-style VU meters plus a thin LED waveform. It is designed to run as a fullscreen kiosk on a Raspberry Pi, with Mac support for development and testing.
 
@@ -101,7 +101,8 @@ The default recognition loop is tuned for quicker record changes:
 When the level stays below `--silence-threshold` for `--track-gap-silence-seconds`,
 the top status changes to `Detected silence`, the current Now Playing display
 clears, and the next music start triggers a fresh scan. Same-track scans do not
-reset lyric timing.
+reset the selected track, but they refresh the lyric timing anchor when Shazam
+returns a newer offset.
 
 ## Quick Start: Raspberry Pi
 

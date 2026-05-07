@@ -21,7 +21,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.5.4"
+APP_VERSION = "0.5.5"
 
 
 def load_settings():
@@ -472,6 +472,28 @@ class NowPlayingService:
         self.state.message = message
         self.write_state_locked()
 
+    def refresh_current_timing_locked(self, track):
+        current = self.state.current
+        if not current or not track:
+            return None
+        if not isinstance(track.get("recognizedOffset"), (int, float)):
+            return None
+
+        previous_position = playback_position(current, self.state.lyricOffsetSeconds)
+        refreshed_position = playback_position(track, self.state.lyricOffsetSeconds)
+        current["recognizedAt"] = track.get("recognizedAt", current.get("recognizedAt"))
+        current["recognizedOffset"] = track["recognizedOffset"]
+        current["provider"] = track.get("provider", current.get("provider"))
+        if track.get("lyrics") and not current.get("lyrics"):
+            current["lyrics"] = track["lyrics"]
+            current.pop("lyricsError", None)
+        elif track.get("lyricsError") and not current.get("lyrics"):
+            current["lyricsError"] = track["lyricsError"]
+
+        if previous_position is None or refreshed_position is None:
+            return None
+        return refreshed_position - previous_position
+
     def silence_seconds_locked(self, now=None):
         now = now or time.time()
         if self.last_loud_at is not None:
@@ -745,12 +767,15 @@ class NowPlayingService:
                 self.state.lastScan = scan
                 if track:
                     changed = not same_track(self.state.current, track)
+                    timing_delta = None
                     if changed:
                         self.state.previous = self.state.current
                         self.state.current = track
                         self.state.history.append(track)
                         self.state.lyricOffsetSeconds = self.state.config["defaultLyricOffsetSeconds"]
                         self.state.lyricScroll = 0
+                    else:
+                        timing_delta = self.refresh_current_timing_locked(track)
                     self.state.status = "matched"
                     self.state.message = "Updated now playing" if changed else "Same track still playing"
                     log_event(
@@ -759,6 +784,7 @@ class NowPlayingService:
                         result="matched",
                         changed=changed,
                         sample_seconds=used_seconds,
+                        timing_delta=round(timing_delta, 2) if timing_delta is not None else None,
                     )
                 else:
                     self.state.status = "no_match"
