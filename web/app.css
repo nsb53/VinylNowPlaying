@@ -9,6 +9,19 @@
   --accent: #e7c86f;
   --accent-2: #7fc7b6;
   --danger: #df7b68;
+  --vu-face-top: #f2e3b8;
+  --vu-face-mid: #dcc180;
+  --vu-face-bottom: #b48746;
+  --vu-border: #755f37;
+  --vu-scale: #442f16;
+  --vu-arc: rgb(49 32 13 / 48%);
+  --vu-mark: rgb(58 38 17 / 52%);
+  --vu-glow-primary: 255 224 127;
+  --vu-glow-secondary: 127 199 182;
+  --vu-shadow: rgb(66 42 10 / 30%);
+  --vu-pivot-border: #90774a;
+  --vu-pivot-highlight: #c7aa63;
+  --vu-accent: #e7c86f;
 }
 
 * {
@@ -22,6 +35,38 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body[data-vu-theme="green"] {
+  --vu-face-top: #dcefc7;
+  --vu-face-mid: #9fc878;
+  --vu-face-bottom: #4f7f45;
+  --vu-border: #5d7b48;
+  --vu-scale: #1f371b;
+  --vu-arc: rgb(29 54 22 / 52%);
+  --vu-mark: rgb(37 73 30 / 54%);
+  --vu-glow-primary: 159 216 111;
+  --vu-glow-secondary: 127 199 182;
+  --vu-shadow: rgb(19 58 18 / 30%);
+  --vu-pivot-border: #78905a;
+  --vu-pivot-highlight: #bad37c;
+  --vu-accent: #9fd86f;
+}
+
+body[data-vu-theme="blue"] {
+  --vu-face-top: #cfe7f1;
+  --vu-face-mid: #79afd1;
+  --vu-face-bottom: #356b96;
+  --vu-border: #456b82;
+  --vu-scale: #173247;
+  --vu-arc: rgb(20 49 69 / 52%);
+  --vu-mark: rgb(24 63 92 / 54%);
+  --vu-glow-primary: 115 180 223;
+  --vu-glow-secondary: 127 199 182;
+  --vu-shadow: rgb(12 45 74 / 30%);
+  --vu-pivot-border: #5b7d94;
+  --vu-pivot-highlight: #9dcced;
+  --vu-accent: #73b4df;
 }
 
 .shell {
@@ -106,7 +151,7 @@ body {
   width: 20%;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--vu-accent);
   border: 10px solid #151515;
 }
 
@@ -231,7 +276,7 @@ button,
   border-radius: 8px;
   padding: 12px;
   background:
-    radial-gradient(circle at 50% 100%, rgb(127 199 182 / 12%) 0, transparent 64%),
+    radial-gradient(circle at 50% 100%, rgb(var(--vu-glow-secondary) / 12%) 0, transparent 64%),
     var(--panel);
 }
 
@@ -261,8 +306,8 @@ button,
   inset: 8px;
   border-radius: 6px;
   background:
-    radial-gradient(circle at 50% 76%, rgb(231 200 111 / calc(var(--vu-glow-alpha, 0) * 0.75)) 0, transparent var(--vu-glow-size, 42%)),
-    radial-gradient(circle at 50% 92%, rgb(127 199 182 / calc(var(--vu-glow-alpha, 0) * 0.5)) 0, transparent 58%);
+    radial-gradient(circle at 50% 76%, rgb(var(--vu-glow-primary) / calc(var(--vu-glow-alpha, 0) * 0.75)) 0, transparent var(--vu-glow-size, 42%)),
+    radial-gradient(circle at 50% 92%, rgb(var(--vu-glow-secondary) / calc(var(--vu-glow-alpha, 0) * 0.5)) 0, transparent 58%);
   pointer-events: none;
 }
 
@@ -281,15 +326,15 @@ button,
   z-index: 1;
   overflow: hidden;
   border-radius: 8px;
-  border: 1px solid #755f37;
+  border: 1px solid var(--vu-border);
   background:
     linear-gradient(115deg, rgb(255 255 255 / 34%) 0 17%, transparent 38% 100%),
-    radial-gradient(circle at 50% 86%, rgb(255 224 127 / calc(var(--vu-glow-alpha, 0) * 1.25)) 0, transparent var(--vu-glow-size, 42%)),
-    radial-gradient(circle at 50% 100%, rgb(127 199 182 / calc(var(--vu-glow-alpha, 0) * 0.55)) 0, transparent 62%),
-    linear-gradient(180deg, #f2e3b8 0%, #dcc180 58%, #b48746 100%);
+    radial-gradient(circle at 50% 86%, rgb(var(--vu-glow-primary) / calc(var(--vu-glow-alpha, 0) * 1.25)) 0, transparent var(--vu-glow-size, 42%)),
+    radial-gradient(circle at 50% 100%, rgb(var(--vu-glow-secondary) / calc(var(--vu-glow-alpha, 0) * 0.55)) 0, transparent 62%),
+    linear-gradient(180deg, var(--vu-face-top) 0%, var(--vu-face-mid) 58%, var(--vu-face-bottom) 100%);
   box-shadow:
     inset 0 2px 14px rgb(255 255 255 / 28%),
-    inset 0 -18px 30px rgb(66 42 10 / 30%),
+    inset 0 -18px 30px var(--vu-shadow),
     0 1px 0 rgb(255 255 255 / 10%);
 }
 
@@ -303,7 +348,7 @@ button,
   opacity: 0.5;
   background:
     linear-gradient(90deg, transparent 0 72%, rgb(141 31 22 / 52%) 72% 100%),
-    repeating-linear-gradient(90deg, rgb(58 38 17 / 0%) 0 7.4%, rgb(58 38 17 / 52%) 7.4% 7.9%, transparent 7.9% 12.5%);
+    repeating-linear-gradient(90deg, rgb(58 38 17 / 0%) 0 7.4%, var(--vu-mark) 7.4% 7.9%, transparent 7.9% 12.5%);
   clip-path: ellipse(55% 72% at 50% 100%);
   pointer-events: none;
 }
@@ -316,7 +361,7 @@ button,
   top: 17px;
   display: flex;
   justify-content: space-between;
-  color: #442f16;
+  color: var(--vu-scale);
   font-size: 0.74rem;
   font-weight: 800;
   text-shadow: 0 1px 0 rgb(255 255 255 / 28%);
@@ -333,7 +378,7 @@ button,
   right: 14%;
   bottom: 23px;
   height: 80px;
-  border-top: 5px solid rgb(49 32 13 / 48%);
+  border-top: 5px solid var(--vu-arc);
   border-radius: 50% 50% 0 0;
 }
 
@@ -343,7 +388,8 @@ button,
   left: 50%;
   bottom: 22px;
   transform: translateX(-50%);
-  color: rgb(68 47 22 / 68%);
+  color: var(--vu-scale);
+  opacity: 0.78;
   font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.08em;
@@ -375,9 +421,9 @@ button,
   transform: translateX(-50%);
   border-radius: 50%;
   background:
-    radial-gradient(circle at 35% 32%, #c7aa63 0 12%, transparent 13%),
+    radial-gradient(circle at 35% 32%, var(--vu-pivot-highlight) 0 12%, transparent 13%),
     radial-gradient(circle, #302719 0 42%, #111 43% 100%);
-  border: 3px solid #90774a;
+  border: 3px solid var(--vu-pivot-border);
   box-shadow:
     inset 0 1px 2px rgb(255 255 255 / 18%),
     0 2px 5px rgb(0 0 0 / 34%);
@@ -402,7 +448,7 @@ button,
   border: 1px solid #4a4336;
   background:
     linear-gradient(180deg, #30302c 0%, #1b1a18 100%);
-  color: var(--accent);
+  color: var(--vu-accent);
   font-weight: 800;
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
 }
@@ -744,6 +790,10 @@ button,
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel-2);
+}
+
+.segmented-control.three {
+  grid-template-columns: repeat(3, minmax(76px, 1fr));
 }
 
 .segmented-control button {

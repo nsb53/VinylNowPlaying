@@ -13,6 +13,7 @@ const lyricScrollEl = document.querySelector("#controlLyricScroll");
 const lyricButtons = document.querySelectorAll("[data-lyric-offset], [data-lyric-scroll], [data-lyric-reset]");
 const defaultButtons = document.querySelectorAll("[data-default-offset]");
 const meterModeButtons = document.querySelectorAll("[data-meter-mode]");
+const vuThemeButtons = document.querySelectorAll("[data-vu-theme]");
 const saveCurrentDefaultEl = document.querySelector("#saveCurrentDefault");
 const manualArtistEl = document.querySelector("#manualArtist");
 const manualAlbumEl = document.querySelector("#manualAlbum");
@@ -116,6 +117,9 @@ async function refreshControl() {
   meterModeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.meterMode === (state.config?.meterDisplayMode || "vu"));
   });
+  vuThemeButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.vuTheme === (state.config?.vuMeterTheme || "amber"));
+  });
   syncManualControls(state);
 }
 
@@ -176,6 +180,12 @@ saveCurrentDefaultEl.addEventListener("click", () => {
 meterModeButtons.forEach((button) => {
   button.addEventListener("click", () => {
     saveSettings({ meterDisplayMode: button.dataset.meterMode });
+  });
+});
+
+vuThemeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    saveSettings({ vuMeterTheme: button.dataset.vuTheme });
   });
 });
 

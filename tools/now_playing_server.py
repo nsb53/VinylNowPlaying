@@ -22,7 +22,8 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.6.1"
+APP_VERSION = "0.6.4"
+SONG_INFO_SCHEMA_VERSION = 2
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 
@@ -182,6 +183,9 @@ def track_from_shazam(result):
         for match in result.get("matches", [])
         if isinstance(match.get("offset"), (int, float))
     ]
+    images = track.get("images") or {}
+    genres = track.get("genres") or {}
+    share = track.get("share") or {}
 
     return {
         "id": str(track.get("key") or ""),
@@ -189,8 +193,11 @@ def track_from_shazam(result):
         "artist": track.get("subtitle") or "Unknown Artist",
         "album": metadata.get("album", ""),
         "released": metadata.get("released", ""),
+        "label": metadata.get("label", ""),
+        "genre": genres.get("primary", ""),
         "url": track.get("url", ""),
-        "cover": track.get("images", {}).get("coverart", ""),
+        "cover": images.get("coverarthq") or images.get("coverart", ""),
+        "artistImage": images.get("background") or share.get("avatar", ""),
         "recognizedAt": utc_now(),
         "recognizedOffset": min(offsets) if offsets else None,
         "provider": "shazam",
@@ -549,6 +556,7 @@ def lookup_musicbrainz_song_info(track):
 
 
 def fallback_song_info(track, source="Shazam"):
+    label = track.get("label", "")
     return {
         "source": source,
         "sourceUrl": track.get("url", ""),
@@ -557,7 +565,9 @@ def fallback_song_info(track, source="Shazam"):
         "originalReleaseDate": track.get("released", ""),
         "releaseType": "",
         "writtenBy": [],
-        "label": [],
+        "label": [label] if label else [],
+        "genre": track.get("genre", ""),
+        "schemaVersion": SONG_INFO_SCHEMA_VERSION,
         "foundAt": utc_now(),
     }
 
@@ -569,13 +579,13 @@ def merge_song_info(track, wikidata_info=None, musicbrainz_info=None):
 
     source_names = [
         info.get("source")
-        for info in (wikidata_info, musicbrainz_info)
+        for info in (fallback_info, wikidata_info, musicbrainz_info)
         if info.get("source")
     ]
     source = " + ".join(source_names) if source_names else fallback_info["source"]
     confidence = "Matched" if source_names else fallback_info["confidence"]
 
-    original_release = musicbrainz_info.get("originalRelease") or ""
+    original_release = fallback_info.get("originalRelease") or musicbrainz_info.get("originalRelease") or ""
     if not credible_release_title(track, original_release):
         original_release = ""
 
@@ -585,16 +595,18 @@ def merge_song_info(track, wikidata_info=None, musicbrainz_info=None):
         "confidence": confidence,
         "originalRelease": original_release,
         "originalReleaseDate": (
-            wikidata_info.get("originalReleaseDate")
+            fallback_info.get("originalReleaseDate")
+            or wikidata_info.get("originalReleaseDate")
             or musicbrainz_info.get("originalReleaseDate")
-            or fallback_info.get("originalReleaseDate")
         ),
         "releaseType": musicbrainz_info.get("releaseType") or wikidata_info.get("releaseType") or "",
         "writtenBy": wikidata_info.get("writtenBy") or musicbrainz_info.get("writtenBy") or [],
-        "label": musicbrainz_info.get("label") or wikidata_info.get("label") or [],
+        "label": fallback_info.get("label") or musicbrainz_info.get("label") or wikidata_info.get("label") or [],
+        "genre": fallback_info.get("genre") or musicbrainz_info.get("genre") or wikidata_info.get("genre") or "",
         "producer": wikidata_info.get("producer") or musicbrainz_info.get("producer") or [],
         "wikidataId": wikidata_info.get("wikidataId", ""),
         "musicbrainzId": musicbrainz_info.get("musicbrainzId", ""),
+        "schemaVersion": SONG_INFO_SCHEMA_VERSION,
         "foundAt": utc_now(),
     }
 
@@ -602,7 +614,7 @@ def merge_song_info(track, wikidata_info=None, musicbrainz_info=None):
 def lookup_song_info(track):
     cache = load_metadata_cache()
     key = metadata_cache_key(track)
-    if key in cache:
+    if key in cache and cache[key].get("schemaVersion") == SONG_INFO_SCHEMA_VERSION:
         return cache[key]
 
     try:
@@ -726,8 +738,11 @@ def manual_track_from_spec(spec, index, default_artist="", default_album="", def
         "artist": artist or "Unknown Artist",
         "album": album,
         "released": released,
+        "label": "",
+        "genre": "",
         "url": "",
         "cover": "",
+        "artistImage": "",
         "recognizedAt": utc_now(),
         "recognizedOffset": 0,
         "provider": "manual",
@@ -802,6 +817,9 @@ class NowPlayingService:
         meter_display_mode = self.settings.get("meterDisplayMode", "vu")
         if meter_display_mode not in ("vu", "spectrum"):
             meter_display_mode = "vu"
+        vu_meter_theme = self.settings.get("vuMeterTheme", "amber")
+        if vu_meter_theme not in ("amber", "green", "blue"):
+            vu_meter_theme = "amber"
         self.args = args
         self.lock = threading.Lock()
         self.scan_requested = threading.Event()
@@ -832,6 +850,7 @@ class NowPlayingService:
                 "nowPlayingClearSilenceSeconds": args.now_playing_clear_silence_seconds,
                 "defaultLyricOffsetSeconds": lyric_default_offset,
                 "meterDisplayMode": meter_display_mode,
+                "vuMeterTheme": vu_meter_theme,
             }
         )
         self.state.lyricOffsetSeconds = lyric_default_offset
@@ -852,6 +871,7 @@ class NowPlayingService:
             return {
                 "defaultLyricOffsetSeconds": self.state.config["defaultLyricOffsetSeconds"],
                 "meterDisplayMode": self.state.config["meterDisplayMode"],
+                "vuMeterTheme": self.state.config["vuMeterTheme"],
             }
 
     def update(self, **changes):
@@ -1035,7 +1055,7 @@ class NowPlayingService:
                 return
             self.set_manual_track_locked(self.state.manualIndex + 1)
 
-    def update_settings(self, default_lyric_offset=None, meter_display_mode=None):
+    def update_settings(self, default_lyric_offset=None, meter_display_mode=None, vu_meter_theme=None):
         with self.lock:
             if default_lyric_offset is not None:
                 value = max(-30.0, min(60.0, float(default_lyric_offset)))
@@ -1045,11 +1065,15 @@ class NowPlayingService:
             if meter_display_mode in ("vu", "spectrum"):
                 self.state.config["meterDisplayMode"] = meter_display_mode
                 self.settings["meterDisplayMode"] = meter_display_mode
+            if vu_meter_theme in ("amber", "green", "blue"):
+                self.state.config["vuMeterTheme"] = vu_meter_theme
+                self.settings["vuMeterTheme"] = vu_meter_theme
             save_settings(self.settings)
             self.write_state_locked()
             return {
                 "defaultLyricOffsetSeconds": self.state.config["defaultLyricOffsetSeconds"],
                 "meterDisplayMode": self.state.config["meterDisplayMode"],
+                "vuMeterTheme": self.state.config["vuMeterTheme"],
             }
 
     def is_music_active(self):
@@ -1383,6 +1407,7 @@ class Handler(SimpleHTTPRequestHandler):
             result = self.service.update_settings(
                 default_lyric_offset=payload.get("defaultLyricOffsetSeconds"),
                 meter_display_mode=payload.get("meterDisplayMode"),
+                vu_meter_theme=payload.get("vuMeterTheme"),
             )
             self.send_json({"ok": True, **result})
             return

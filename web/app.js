@@ -8,6 +8,7 @@ const els = {
   artist: document.querySelector("#artist"),
   album: document.querySelector("#album"),
   released: document.querySelector("#released"),
+  genre: document.querySelector("#genre"),
   lastScan: document.querySelector("#lastScan"),
   nextScan: document.querySelector("#nextScan"),
   songInfoSource: document.querySelector("#songInfoSource"),
@@ -43,8 +44,31 @@ const spectrumState = {
   lastPaint: 0,
 };
 
+const spectrumPalettes = {
+  amber: {
+    low: "rgba(127, 199, 182, 0.88)",
+    mid: "rgba(231, 200, 111, {alpha})",
+    high: "rgba(223, 123, 104, 0.95)",
+    top: "rgba(244, 240, 232, 0.86)",
+  },
+  green: {
+    low: "rgba(127, 199, 182, 0.88)",
+    mid: "rgba(159, 216, 111, {alpha})",
+    high: "rgba(226, 125, 101, 0.95)",
+    top: "rgba(232, 244, 220, 0.86)",
+  },
+  blue: {
+    low: "rgba(127, 199, 182, 0.88)",
+    mid: "rgba(115, 180, 223, {alpha})",
+    high: "rgba(226, 125, 101, 0.95)",
+    top: "rgba(225, 241, 248, 0.86)",
+  },
+};
+
 let latestState = null;
 let lastSyncedActiveIndex = null;
+let activeArtTrackId = null;
+let artRotationStartedAt = Date.now();
 
 function timeAgo(value) {
   if (!value) return "-";
@@ -66,7 +90,9 @@ function timeUntil(value) {
 
 function setCover(url) {
   if (url) {
-    els.cover.src = url;
+    if (els.cover.getAttribute("src") !== url) {
+      els.cover.src = url;
+    }
     els.cover.classList.remove("hidden");
     els.recordFallback.classList.add("hidden");
   } else {
@@ -74,6 +100,36 @@ function setCover(url) {
     els.cover.classList.add("hidden");
     els.recordFallback.classList.remove("hidden");
   }
+}
+
+function uniqueValues(values) {
+  return values.filter(Boolean).filter((value, index, list) => list.indexOf(value) === index);
+}
+
+function renderArtwork(track) {
+  if (!track) {
+    activeArtTrackId = null;
+    setCover("");
+    return;
+  }
+
+  const trackId = track.id || `${track.artist || ""}:${track.title || ""}`;
+  if (activeArtTrackId !== trackId) {
+    activeArtTrackId = trackId;
+    artRotationStartedAt = Date.now();
+  }
+
+  const images = uniqueValues([track.cover, track.artistImage]);
+  if (!images.length) {
+    setCover("");
+    return;
+  }
+
+  const imageIndex = images.length > 1
+    ? Math.floor((Date.now() - artRotationStartedAt) / 5000) % images.length
+    : 0;
+  els.cover.alt = imageIndex === 1 ? `${track.artist || "Artist"} image` : `${track.title || "Album"} cover`;
+  setCover(images[imageIndex]);
 }
 
 function formatList(values) {
@@ -290,11 +346,14 @@ function drawSpectrum() {
     const y = bottom - barHeight;
     const hueBlend = index / Math.max(1, bands.length - 1);
     const hot = shaped > 0.78;
+    const theme = document.body.dataset.vuTheme || "amber";
+    const palette = spectrumPalettes[theme] || spectrumPalettes.amber;
+    const midAlpha = (0.72 + hueBlend * 0.18).toFixed(3);
 
     const gradient = ctx.createLinearGradient(0, bottom, 0, y);
-    gradient.addColorStop(0, "rgba(127, 199, 182, 0.88)");
-    gradient.addColorStop(0.62, `rgba(231, 200, 111, ${0.72 + hueBlend * 0.18})`);
-    gradient.addColorStop(1, hot ? "rgba(223, 123, 104, 0.95)" : "rgba(244, 240, 232, 0.86)");
+    gradient.addColorStop(0, palette.low);
+    gradient.addColorStop(0.62, palette.mid.replace("{alpha}", midAlpha));
+    gradient.addColorStop(1, hot ? palette.high : palette.top);
     ctx.fillStyle = gradient;
     ctx.fillRect(x, y, barWidth, barHeight);
 
@@ -314,6 +373,7 @@ function render(data) {
   els.versionText.textContent = `v${data.config?.appVersion || "-"}`;
   els.statusDot.classList.toggle("error", data.status === "error");
   const meterDisplayMode = data.config?.meterDisplayMode || "vu";
+  document.body.dataset.vuTheme = data.config?.vuMeterTheme || "amber";
   els.spectrumWrap?.classList.toggle("hidden", meterDisplayMode !== "spectrum");
   els.meterLeft?.classList.toggle("hidden", meterDisplayMode === "spectrum");
   els.meterRight?.classList.toggle("hidden", meterDisplayMode === "spectrum");
@@ -323,14 +383,16 @@ function render(data) {
     els.artist.textContent = track.artist || "Unknown Artist";
     els.album.textContent = track.album || "-";
     els.released.textContent = track.released || "-";
-    setCover(track.cover);
+    els.genre.textContent = track.genre || track.songInfo?.genre || "-";
+    renderArtwork(track);
 
   } else {
     els.title.textContent = "Listening...";
     els.artist.textContent = data.error || "Waiting for the first recognition pass.";
     els.album.textContent = "-";
     els.released.textContent = "-";
-    setCover("");
+    els.genre.textContent = "-";
+    renderArtwork(null);
   }
 
   els.lastScan.textContent = data.lastScan ? timeAgo(data.lastScan.finishedAt) : "-";
@@ -361,6 +423,7 @@ refreshLevel();
 animateMeters();
 setInterval(animateMeters, 50);
 setInterval(drawSpectrum, 80);
+setInterval(() => renderArtwork(latestState?.current), 1000);
 setInterval(refresh, 5000);
 setInterval(refreshLevel, 250);
 setInterval(refreshSyncedLyrics, 500);
