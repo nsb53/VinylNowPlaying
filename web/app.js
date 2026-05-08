@@ -11,11 +11,9 @@ const els = {
   genre: document.querySelector("#genre"),
   lastScan: document.querySelector("#lastScan"),
   nextScan: document.querySelector("#nextScan"),
-  songInfoSource: document.querySelector("#songInfoSource"),
   originalRelease: document.querySelector("#originalRelease"),
   originalReleaseDate: document.querySelector("#originalReleaseDate"),
   writtenBy: document.querySelector("#writtenBy"),
-  label: document.querySelector("#label"),
   needleLeft: document.querySelector("#needleLeft"),
   needleRight: document.querySelector("#needleRight"),
   meterLeft: document.querySelector("#needleLeft")?.closest(".vu-meter"),
@@ -69,6 +67,7 @@ let latestState = null;
 let lastSyncedActiveIndex = null;
 let activeArtTrackId = null;
 let artRotationStartedAt = Date.now();
+let lastPlainLyricsKey = "";
 
 function timeAgo(value) {
   if (!value) return "-";
@@ -126,7 +125,7 @@ function renderArtwork(track) {
   }
 
   const imageIndex = images.length > 1
-    ? Math.floor((Date.now() - artRotationStartedAt) / 5000) % images.length
+    ? Math.floor((Date.now() - artRotationStartedAt) / 8000) % images.length
     : 0;
   els.cover.alt = imageIndex === 1 ? `${track.artist || "Artist"} image` : `${track.title || "Album"} cover`;
   setCover(images[imageIndex]);
@@ -139,13 +138,10 @@ function formatList(values) {
 
 function renderSongInfo(track) {
   const info = track?.songInfo;
-  els.songInfoSource.textContent = info?.source
-    ? `${info.source}${info.confidence ? ` / ${info.confidence}` : ""}`
-    : "-";
   els.originalRelease.textContent = info?.originalRelease || "-";
   els.originalReleaseDate.textContent = info?.originalReleaseDate || "-";
   els.writtenBy.textContent = formatList(info?.writtenBy);
-  els.label.textContent = formatList(info?.label);
+  els.genre.textContent = track?.genre || info?.genre || "-";
 }
 
 function parseSyncedLyrics(synced) {
@@ -196,11 +192,31 @@ function renderSyncedLyrics(track, lyrics, lyricOffsetSeconds) {
   return true;
 }
 
-function renderPlainLyrics(lyrics, lyricScroll) {
-  const lines = (lyrics.plain || "").split("\n");
-  const start = Math.min(Math.max(0, lyricScroll || 0), Math.max(0, lines.length - 1));
+function lineHeightPixels(element) {
+  const parsed = Number.parseFloat(getComputedStyle(element).lineHeight);
+  return Number.isFinite(parsed) ? parsed : 24;
+}
+
+function renderPlainLyrics(track, lyrics, lyricScroll, lyricOffsetSeconds) {
+  const plain = lyrics.plain || "";
+  const plainKey = `${track?.id || ""}:${lyrics.id || ""}:${plain.length}`;
   els.lyricsText.className = "lyrics-text plain";
-  els.lyricsText.textContent = lines.slice(start).join("\n");
+  if (lastPlainLyricsKey !== plainKey) {
+    lastPlainLyricsKey = plainKey;
+    els.lyricsText.textContent = plain;
+  }
+
+  const duration = Number(lyrics.duration);
+  const position = playbackPosition(track, lyricOffsetSeconds);
+  if (!Number.isFinite(duration) || duration <= 0 || position === null) return;
+
+  const scrollMax = Math.max(0, els.lyricsText.scrollHeight - els.lyricsText.clientHeight);
+  if (!scrollMax) return;
+
+  const songProgress = clamp(position / duration, 0, 1);
+  const scrollProgress = clamp((songProgress - 0.04) / 0.72, 0, 1);
+  const manualNudge = Math.round(Number(lyricScroll || 0)) * lineHeightPixels(els.lyricsText);
+  els.lyricsText.scrollTop = clamp(scrollMax * scrollProgress + manualNudge, 0, scrollMax);
 }
 
 function renderLyrics(track, state) {
@@ -211,6 +227,7 @@ function renderLyrics(track, state) {
     els.lyricsSource.textContent = "LRCLIB";
     els.lyricsText.className = "lyrics-text";
     els.lyricsText.textContent = "Lyrics will appear here when LRCLIB has a match.";
+    lastPlainLyricsKey = "";
     return;
   }
 
@@ -220,6 +237,7 @@ function renderLyrics(track, state) {
     els.lyricsSource.textContent = "LRCLIB";
     els.lyricsText.className = "lyrics-text";
     els.lyricsText.textContent = "Instrumental";
+    lastPlainLyricsKey = "";
     return;
   }
 
@@ -230,7 +248,7 @@ function renderLyrics(track, state) {
     els.lyricsSource.textContent = hasSyncedDisplay
       ? `${lyrics.source || "LRCLIB"} +${Number(state.lyricOffsetSeconds || 0).toFixed(1)}s`
       : lyrics.source || "LRCLIB";
-    if (!hasSyncedDisplay) renderPlainLyrics(lyrics, state.lyricScroll);
+    if (!hasSyncedDisplay) renderPlainLyrics(track, lyrics, state.lyricScroll, state.lyricOffsetSeconds);
     return;
   }
 
@@ -239,6 +257,7 @@ function renderLyrics(track, state) {
   els.lyricsSource.textContent = track.lyricsError ? "Lookup failed" : "No match";
   els.lyricsText.className = "lyrics-text";
   els.lyricsText.textContent = track.lyricsError || "No lyrics found for this track.";
+  lastPlainLyricsKey = "";
 }
 
 function clamp(value, min, max) {
@@ -383,7 +402,6 @@ function render(data) {
     els.artist.textContent = track.artist || "Unknown Artist";
     els.album.textContent = track.album || "-";
     els.released.textContent = track.released || "-";
-    els.genre.textContent = track.genre || track.songInfo?.genre || "-";
     renderArtwork(track);
 
   } else {
@@ -391,7 +409,6 @@ function render(data) {
     els.artist.textContent = data.error || "Waiting for the first recognition pass.";
     els.album.textContent = "-";
     els.released.textContent = "-";
-    els.genre.textContent = "-";
     renderArtwork(null);
   }
 
@@ -407,8 +424,8 @@ async function refresh() {
   render(await response.json());
 }
 
-function refreshSyncedLyrics() {
-  if (latestState?.current?.lyrics?.synced) {
+function refreshLyricsDisplay() {
+  if (latestState?.current?.lyrics?.synced || latestState?.current?.lyrics?.plain) {
     renderLyrics(latestState.current, latestState);
   }
 }
@@ -426,4 +443,4 @@ setInterval(drawSpectrum, 80);
 setInterval(() => renderArtwork(latestState?.current), 1000);
 setInterval(refresh, 5000);
 setInterval(refreshLevel, 250);
-setInterval(refreshSyncedLyrics, 500);
+setInterval(refreshLyricsDisplay, 500);

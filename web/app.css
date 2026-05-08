@@ -459,14 +459,13 @@ button,
   font-variant-numeric: tabular-nums;
 }
 
-.song-info-band,
 .lyrics-band {
   border-top: 1px solid var(--line);
   padding-top: 16px;
 }
 
 .track-panel .song-info-band {
-  margin-top: 24px;
+  margin-top: 10px;
 }
 
 .song-info-band h2,
@@ -523,9 +522,9 @@ button,
 }
 
 .lyrics-status strong.synced {
-  border-color: rgb(214 183 88 / 55%);
-  background: rgb(214 183 88 / 14%);
-  color: #d6b758;
+  border-color: rgb(var(--vu-glow-primary) / 55%);
+  background: rgb(var(--vu-glow-primary) / 14%);
+  color: var(--vu-accent);
 }
 
 .lyrics-status strong.plain {
@@ -568,7 +567,7 @@ button,
 }
 
 .lyrics-text.synced p.active {
-  color: #d6b758;
+  color: var(--vu-accent);
   font-size: clamp(1.15rem, 1.65vw, 1.65rem);
 }
 

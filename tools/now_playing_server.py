@@ -22,7 +22,7 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.6.4"
+APP_VERSION = "0.6.11"
 SONG_INFO_SCHEMA_VERSION = 2
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
@@ -1332,6 +1332,17 @@ class NowPlayingService:
                     self.level_process.terminate()
                 self.level_process = None
 
+    def shutdown(self):
+        self.stop_requested.set()
+        with self.audio_lock:
+            if self.level_process and self.level_process.poll() is None:
+                self.level_process.terminate()
+                try:
+                    self.level_process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    self.level_process.kill()
+            self.level_process = None
+
 
 class Handler(SimpleHTTPRequestHandler):
     service: NowPlayingService = None
@@ -1446,22 +1457,22 @@ def main():
     service = NowPlayingService(args)
     Handler.service = service
 
-    worker = threading.Thread(target=service.loop, daemon=True)
+    server = ThreadingHTTPServer((args.host, args.port), Handler)
+    worker = threading.Thread(target=service.loop, name="recognition-loop")
     worker.start()
-    level_worker = threading.Thread(target=service.level_loop, daemon=True)
+    level_worker = threading.Thread(target=service.level_loop, name="level-loop")
     level_worker.start()
 
-    server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"Now Playing dashboard: http://{args.host}:{args.port}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
-        service.stop_requested.set()
-        if service.level_process and service.level_process.poll() is None:
-            service.level_process.terminate()
+        service.shutdown()
         server.server_close()
+        worker.join(timeout=5)
+        level_worker.join(timeout=5)
 
 
 if __name__ == "__main__":
