@@ -21,7 +21,6 @@ const els = {
   meterRight: document.querySelector("#needleRight")?.closest(".vu-meter"),
   leftDb: document.querySelector("#leftDb"),
   rightDb: document.querySelector("#rightDb"),
-  waveform: document.querySelector("#waveform"),
   spectrum: document.querySelector("#spectrum"),
   spectrumWrap: document.querySelector("#spectrumWrap"),
   lyricsMode: document.querySelector("#lyricsMode"),
@@ -35,13 +34,6 @@ const meterState = {
   leftDisplay: -60,
   rightDisplay: -60,
   lastFrame: performance.now(),
-  lastPaint: 0,
-};
-
-const waveformState = {
-  points: Array.from({ length: 120 }, () => 0),
-  floor: -50,
-  ceiling: -8,
   lastPaint: 0,
 };
 
@@ -223,16 +215,6 @@ function renderLevel(level) {
     Number.isFinite(leftPeak) ? leftPeak : rms,
     Number.isFinite(rightPeak) ? rightPeak : rms,
   );
-  const levelDb = rms * 0.9 + peak * 0.1;
-  if (Number.isFinite(levelDb)) {
-    waveformState.floor = waveformState.floor * 0.99 + Math.min(levelDb - 12, -44) * 0.01;
-    waveformState.ceiling = waveformState.ceiling * 0.985 + Math.max(levelDb + 12, -12) * 0.015;
-  }
-  const span = Math.max(24, waveformState.ceiling - waveformState.floor);
-  const amplitude = clamp((levelDb - waveformState.floor) / span, 0.03, 0.94);
-  waveformState.points.push(amplitude);
-  waveformState.points.shift();
-
   if (Array.isArray(level?.spectrumBands) && level.spectrumBands.length) {
     spectrumState.bands = level.spectrumBands.map((value) => {
       const boosted = Math.pow(clamp(Number(value) || 0, 0, 1), 0.62) * 1.24;
@@ -269,54 +251,6 @@ function animateMeters() {
   els.meterLeft?.style.setProperty("--vu-glow-size", `${42 + leftGlow * 32}%`);
   els.meterRight?.style.setProperty("--vu-glow-alpha", (rightGlow * 0.62).toFixed(3));
   els.meterRight?.style.setProperty("--vu-glow-size", `${42 + rightGlow * 32}%`);
-}
-
-function drawWaveform() {
-  const canvas = els.waveform;
-  const rect = canvas.getBoundingClientRect();
-  const scale = Math.min(window.devicePixelRatio || 1, 1.5);
-  const width = Math.max(1, Math.floor(rect.width * scale));
-  const height = Math.max(1, Math.floor(rect.height * scale));
-  if (canvas.width !== width || canvas.height !== height) {
-    canvas.width = width;
-    canvas.height = height;
-  }
-
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#161513";
-  ctx.fillRect(0, 0, width, height);
-
-  const mid = height / 2;
-  ctx.strokeStyle = "rgba(231, 200, 111, 0.16)";
-  ctx.lineWidth = Math.max(1, scale);
-  ctx.beginPath();
-  ctx.moveTo(0, mid);
-  ctx.lineTo(width, mid);
-  ctx.stroke();
-
-  const barCount = 96;
-  const visiblePoints = waveformState.points.slice(-barCount);
-  const gap = Math.max(1 * scale, width * 0.0018);
-  const barWidth = Math.max(2 * scale, (width - gap * (barCount - 1)) / barCount);
-  const maxBarHeight = height * 0.34;
-
-  visiblePoints.forEach((value, index) => {
-    const age = index / Math.max(1, visiblePoints.length - 1);
-    const shaped = Math.pow(clamp(value, 0, 1), 1.85);
-    const barHeight = Math.max(2 * scale, shaped * maxBarHeight);
-    const x = index * (barWidth + gap);
-    const alpha = 0.18 + age * 0.72;
-    const ledWidth = Math.max(1 * scale, barWidth * 0.42);
-    const ledX = x + (barWidth - ledWidth) / 2;
-    const capHeight = Math.max(1, Math.min(3 * scale, barHeight * 0.16));
-    ctx.fillStyle = `rgba(231, 200, 111, ${alpha * 0.82})`;
-    ctx.fillRect(ledX, mid - barHeight, ledWidth, barHeight * 2);
-    ctx.fillStyle = `rgba(127, 199, 182, ${alpha * 0.55})`;
-    ctx.fillRect(ledX, mid - barHeight, ledWidth, capHeight);
-    ctx.fillRect(ledX, mid + barHeight - capHeight, ledWidth, capHeight);
-  });
-
 }
 
 function drawSpectrum() {
@@ -425,9 +359,7 @@ async function refreshLevel() {
 refresh();
 refreshLevel();
 animateMeters();
-drawWaveform();
 setInterval(animateMeters, 50);
-setInterval(drawWaveform, 250);
 setInterval(drawSpectrum, 80);
 setInterval(refresh, 5000);
 setInterval(refreshLevel, 250);

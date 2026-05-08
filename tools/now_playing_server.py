@@ -22,7 +22,7 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.6.0"
+APP_VERSION = "0.6.1"
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 
