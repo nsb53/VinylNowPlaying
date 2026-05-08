@@ -239,7 +239,7 @@ function renderLevel(level) {
 
 function approach(current, target, deltaSeconds) {
   const rising = target > current;
-  const rate = rising ? 32 : 5;
+  const rate = rising ? 52 : 13;
   const amount = 1 - Math.exp(-rate * deltaSeconds);
   return current + (target - current) * amount;
 }
@@ -419,7 +419,7 @@ refresh();
 refreshLevel();
 animateMeters();
 drawWaveform();
-setInterval(animateMeters, 100);
+setInterval(animateMeters, 50);
 setInterval(drawWaveform, 250);
 setInterval(drawSpectrum, 80);
 setInterval(refresh, 5000);
