@@ -261,10 +261,14 @@ button,
 .vu-meter {
   position: relative;
   overflow: hidden;
-  background: #201f1b;
-  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, #2a2824 0%, #191817 100%);
+  border: 1px solid #3f3a31;
   border-radius: 8px;
-  padding: 16px;
+  padding: 14px;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 6%),
+    0 18px 42px rgb(0 0 0 / 22%);
 }
 
 .vu-meter::before {
@@ -278,39 +282,75 @@ button,
   pointer-events: none;
 }
 
+.vu-meter::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  border-radius: 7px;
+  background: linear-gradient(135deg, rgb(255 255 255 / 10%) 0 18%, transparent 38% 100%);
+  pointer-events: none;
+}
+
 .vu-face {
-  height: clamp(96px, 12vh, 140px);
+  height: clamp(110px, 13vh, 156px);
   position: relative;
   z-index: 1;
   overflow: hidden;
-  border-radius: 6px;
-  border: 1px solid #4a4030;
+  border-radius: 8px;
+  border: 1px solid #755f37;
   background:
+    linear-gradient(90deg, transparent 0 72%, rgb(141 31 22 / 14%) 72% 100%),
+    linear-gradient(115deg, rgb(255 255 255 / 34%) 0 17%, transparent 38% 100%),
     radial-gradient(circle at 50% 86%, rgb(255 224 127 / calc(var(--vu-glow-alpha, 0) * 1.25)) 0, transparent var(--vu-glow-size, 42%)),
     radial-gradient(circle at 50% 100%, rgb(127 199 182 / calc(var(--vu-glow-alpha, 0) * 0.55)) 0, transparent 62%),
-    linear-gradient(180deg, #e7d7ac 0%, #c9ae73 100%);
-  box-shadow: inset 0 2px 14px rgb(255 255 255 / 22%), inset 0 -16px 28px rgb(66 42 10 / 28%);
+    linear-gradient(180deg, #f2e3b8 0%, #dcc180 58%, #b48746 100%);
+  box-shadow:
+    inset 0 2px 14px rgb(255 255 255 / 28%),
+    inset 0 -18px 30px rgb(66 42 10 / 30%),
+    0 1px 0 rgb(255 255 255 / 10%);
+}
+
+.vu-face::before {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  top: 45px;
+  height: 54px;
+  opacity: 0.5;
+  background:
+    linear-gradient(90deg, transparent 0 72%, rgb(141 31 22 / 52%) 72% 100%),
+    repeating-linear-gradient(90deg, rgb(58 38 17 / 0%) 0 7.4%, rgb(58 38 17 / 52%) 7.4% 7.9%, transparent 7.9% 12.5%);
+  clip-path: ellipse(55% 72% at 50% 100%);
+  pointer-events: none;
 }
 
 .vu-face::after {
   content: "";
   position: absolute;
-  inset: 10px 12px auto;
-  height: 52px;
-  border-top: 2px solid rgb(46 31 16 / 45%);
+  left: 10%;
+  right: 10%;
+  top: 38px;
+  height: 74px;
+  border-top: 3px solid rgb(46 31 16 / 42%);
   border-radius: 50% 50% 0 0;
+  box-shadow:
+    inset 0 10px 0 -8px rgb(141 31 22 / 18%),
+    0 -1px 0 rgb(255 255 255 / 18%);
 }
 
 .vu-scale {
   position: absolute;
-  left: 18px;
-  right: 18px;
-  top: 18px;
+  z-index: 2;
+  left: 15px;
+  right: 15px;
+  top: 17px;
   display: flex;
   justify-content: space-between;
   color: #442f16;
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 800;
+  text-shadow: 0 1px 0 rgb(255 255 255 / 28%);
 }
 
 .vu-scale span:last-child {
@@ -319,37 +359,72 @@ button,
 
 .vu-arc {
   position: absolute;
-  left: 16%;
-  right: 16%;
-  bottom: 20px;
-  height: 72px;
-  border-top: 4px solid rgb(49 32 13 / 48%);
+  z-index: 1;
+  left: 14%;
+  right: 14%;
+  bottom: 23px;
+  height: 80px;
+  border-top: 5px solid rgb(49 32 13 / 48%);
   border-radius: 50% 50% 0 0;
+}
+
+.vu-arc::before {
+  content: "VU";
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  color: rgb(68 47 22 / 68%);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.vu-arc::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -5px;
+  width: 30%;
+  height: 42px;
+  border-top: 5px solid rgb(141 31 22 / 78%);
+  border-radius: 50% 50% 0 0;
+  transform: rotate(8deg);
+  transform-origin: left top;
 }
 
 .vu-needle {
   position: absolute;
+  z-index: 3;
   left: 50%;
-  bottom: 21px;
-  width: 3px;
-  height: 74%;
-  background: #2a1709;
+  bottom: 23px;
+  width: 2px;
+  height: 76%;
+  background: linear-gradient(180deg, #180c05 0%, #4b2710 100%);
   border-radius: 999px;
   transform-origin: 50% 100%;
   transform: translateX(-50%) rotate(-42deg);
-  box-shadow: 0 0 8px rgb(42 23 9 / 22%);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 10%),
+    0 0 10px rgb(42 23 9 / 28%);
 }
 
 .vu-pivot {
   position: absolute;
+  z-index: 4;
   left: 50%;
-  bottom: 12px;
-  width: 24px;
-  height: 24px;
+  bottom: 10px;
+  width: 28px;
+  height: 28px;
   transform: translateX(-50%);
   border-radius: 50%;
-  background: #2b241b;
-  border: 3px solid #7f6a42;
+  background:
+    radial-gradient(circle at 35% 32%, #c7aa63 0 12%, transparent 13%),
+    radial-gradient(circle, #302719 0 42%, #111 43% 100%);
+  border: 3px solid #90774a;
+  box-shadow:
+    inset 0 1px 2px rgb(255 255 255 / 18%),
+    0 2px 5px rgb(0 0 0 / 34%);
 }
 
 .vu-label {
@@ -367,15 +442,19 @@ button,
   height: 28px;
   display: grid;
   place-items: center;
-  border-radius: 50%;
-  background: var(--panel-2);
+  border-radius: 7px;
+  border: 1px solid #4a4336;
+  background:
+    linear-gradient(180deg, #30302c 0%, #1b1a18 100%);
   color: var(--accent);
   font-weight: 800;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 8%);
 }
 
 .vu-label strong {
   color: var(--text);
-  font-size: 1rem;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .history-band,
