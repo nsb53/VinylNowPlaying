@@ -1,6 +1,6 @@
 # Vinyl Now Playing
 
-Current app version: `0.5.4`
+Current app version: `0.5.3`
 
 A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a USB audio input, identifies the current track, shows album art, displays lyrics from LRCLIB, and renders live stereo-style VU meters plus a thin LED waveform. It is designed to run as a fullscreen kiosk on a Raspberry Pi, with Mac support for development and testing.
 
