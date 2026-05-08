@@ -22,7 +22,7 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.5.8"
+APP_VERSION = "0.5.9"
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 
@@ -713,6 +713,7 @@ class NowPlayingService:
         self.music_active_since = None
         self.last_loud_at = None
         self.track_gap_cleared = False
+        self.awaiting_new_track_after_gap = False
         self.manual_started_at = None
         self.state = DashboardState(
             config={
@@ -830,6 +831,7 @@ class NowPlayingService:
         self.state.current = None
         self.state.previous = None
         self.state.history = []
+        self.awaiting_new_track_after_gap = False
         self.state.lyricOffsetSeconds = self.state.config["defaultLyricOffsetSeconds"]
         self.state.lyricScroll = 0
         self.state.status = "idle"
@@ -846,6 +848,7 @@ class NowPlayingService:
             return False
         self.state.previous = self.state.current
         self.state.current = None
+        self.awaiting_new_track_after_gap = True
         self.state.lyricOffsetSeconds = self.state.config["defaultLyricOffsetSeconds"]
         self.state.lyricScroll = 0
         self.state.status = "idle"
@@ -1086,10 +1089,28 @@ class NowPlayingService:
             with self.lock:
                 self.state.lastScan = scan
                 if track:
+                    stale_gap_match = (
+                        self.awaiting_new_track_after_gap
+                        and self.state.current is None
+                        and same_track(self.state.previous, track)
+                    )
+                    if stale_gap_match:
+                        self.state.status = "idle"
+                        self.state.message = "Detected silence"
+                        log_event(
+                            "scan",
+                            action="done",
+                            result="ignored_previous_after_gap",
+                            sample_seconds=used_seconds,
+                        )
+                        self.state.error = None
+                        self.write_state_locked()
+                        return
                     changed = not same_track(self.state.current, track)
                     if changed:
                         self.state.previous = self.state.current
                         self.state.current = track
+                        self.awaiting_new_track_after_gap = False
                         self.state.history.append(track)
                         self.state.lyricOffsetSeconds = self.state.config["defaultLyricOffsetSeconds"]
                         self.state.lyricScroll = 0
