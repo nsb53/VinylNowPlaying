@@ -20,8 +20,10 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
+METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.5.7"
+APP_VERSION = "0.5.8"
+USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 
 def load_settings():
@@ -36,6 +38,20 @@ def load_settings():
 def save_settings(settings):
     SETTINGS_PATH.parent.mkdir(exist_ok=True)
     SETTINGS_PATH.write_text(json.dumps(settings, indent=2), encoding="utf-8")
+
+
+def load_metadata_cache():
+    if not METADATA_CACHE_PATH.exists():
+        return {}
+    try:
+        return json.loads(METADATA_CACHE_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def save_metadata_cache(cache):
+    METADATA_CACHE_PATH.parent.mkdir(exist_ok=True)
+    METADATA_CACHE_PATH.write_text(json.dumps(cache, indent=2), encoding="utf-8")
 
 
 def utc_now():
@@ -185,6 +201,330 @@ def normalize_text(value):
     return (value or "").strip().casefold().replace("’", "'").replace("‐", "-")
 
 
+def clean_title(value):
+    value = re.sub(r"\s*\([^)]*(remaster|version|edit|mix|mono|stereo|live)[^)]*\)", "", value or "", flags=re.I)
+    value = re.sub(r"\s*-\s*(remaster|.*version|.*edit|.*mix|mono|stereo|live).*$", "", value, flags=re.I)
+    return value.strip()
+
+
+def metadata_cache_key(track):
+    return f"{normalize_text(track.get('artist'))}::{normalize_text(clean_title(track.get('title')))}"
+
+
+def http_json(url, timeout=12):
+    request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "application/json"})
+    with urlopen(request, timeout=timeout) as response:
+        return json.load(response)
+
+
+def wikidata_api(params, timeout=12):
+    params = {"format": "json", **params}
+    return http_json("https://www.wikidata.org/w/api.php?" + urlencode(params), timeout=timeout)
+
+
+def wikidata_item_id(claim):
+    value = claim.get("mainsnak", {}).get("datavalue", {}).get("value", {})
+    if isinstance(value, dict) and value.get("id"):
+        return value["id"]
+    return None
+
+
+def wikidata_time(claim):
+    value = claim.get("mainsnak", {}).get("datavalue", {}).get("value", {})
+    if not isinstance(value, dict) or not value.get("time"):
+        return ""
+    raw = value["time"].lstrip("+")
+    year, month, day = raw[:10].split("-")
+    precision = value.get("precision", 9)
+    if precision >= 11 and month != "00" and day != "00":
+        return f"{year}-{month}-{day}"
+    if precision >= 10 and month != "00":
+        return f"{year}-{month}"
+    return year
+
+
+def wikidata_claim_items(entity, property_id):
+    return [
+        item_id
+        for claim in entity.get("claims", {}).get(property_id, [])
+        if (item_id := wikidata_item_id(claim))
+    ]
+
+
+def wikidata_claim_time(entity, property_id):
+    for claim in entity.get("claims", {}).get(property_id, []):
+        if value := wikidata_time(claim):
+            return value
+    return ""
+
+
+def wikidata_labels(item_ids):
+    item_ids = [item_id for item_id in dict.fromkeys(item_ids) if item_id]
+    if not item_ids:
+        return {}
+    data = wikidata_api({
+        "action": "wbgetentities",
+        "ids": "|".join(item_ids[:50]),
+        "languages": "en",
+        "props": "labels",
+    })
+    labels = {}
+    for item_id, entity in (data.get("entities") or {}).items():
+        label = entity.get("labels", {}).get("en", {}).get("value")
+        if label:
+            labels[item_id] = label
+    return labels
+
+
+def lookup_wikidata_song_info(track):
+    title = clean_title(track.get("title"))
+    artist = track.get("artist") or ""
+    if not title:
+        return None
+
+    log_event("metadata", action="wikidata_search", artist=artist, title=title)
+    search = wikidata_api({
+        "action": "wbsearchentities",
+        "search": title,
+        "language": "en",
+        "limit": 5,
+    })
+    candidates = search.get("search") or []
+    if not candidates:
+        return None
+
+    candidate_ids = [candidate["id"] for candidate in candidates if candidate.get("id")]
+    data = wikidata_api({
+        "action": "wbgetentities",
+        "ids": "|".join(candidate_ids),
+        "languages": "en",
+        "props": "labels|descriptions|claims",
+    })
+    entities = data.get("entities") or {}
+    label_ids = []
+    for entity in entities.values():
+        for property_id in ("P175", "P86", "P676", "P162", "P264", "P361"):
+            label_ids.extend(wikidata_claim_items(entity, property_id))
+    labels = wikidata_labels(label_ids)
+
+    def score_entity(entity):
+        label = entity.get("labels", {}).get("en", {}).get("value", "")
+        description = entity.get("descriptions", {}).get("en", {}).get("value", "")
+        score = 0
+        if normalize_text(clean_title(label)) == normalize_text(title):
+            score += 5
+        elif normalize_text(title) in normalize_text(clean_title(label)):
+            score += 2
+        performer_names = [labels.get(item_id, "") for item_id in wikidata_claim_items(entity, "P175")]
+        if artist and any(normalize_text(artist) in normalize_text(name) for name in performer_names):
+            score += 5
+        if artist and normalize_text(artist) in normalize_text(description):
+            score += 2
+        if "cover version" in normalize_text(description):
+            score -= 4
+        if wikidata_claim_time(entity, "P577"):
+            score += 1
+        if wikidata_claim_items(entity, "P86") or wikidata_claim_items(entity, "P676"):
+            score += 1
+        return score
+
+    entity = max(entities.values(), key=score_entity)
+    if score_entity(entity) < 5:
+        return None
+
+    writer_ids = wikidata_claim_items(entity, "P86") + wikidata_claim_items(entity, "P676")
+    label_ids = wikidata_claim_items(entity, "P264")
+    producer_ids = wikidata_claim_items(entity, "P162")
+    written_by = [labels[item_id] for item_id in dict.fromkeys(writer_ids) if labels.get(item_id)]
+    label_names = [labels[item_id] for item_id in dict.fromkeys(label_ids) if labels.get(item_id)]
+    producer_names = [labels[item_id] for item_id in dict.fromkeys(producer_ids) if labels.get(item_id)]
+
+    return {
+        "source": "Wikidata",
+        "sourceUrl": f"https://www.wikidata.org/wiki/{entity.get('id')}",
+        "confidence": "Matched",
+        "originalRelease": "",
+        "originalReleaseDate": wikidata_claim_time(entity, "P577"),
+        "releaseType": "",
+        "writtenBy": written_by[:4],
+        "label": label_names[:3],
+        "producer": producer_names[:3],
+        "wikidataId": entity.get("id", ""),
+        "foundAt": utc_now(),
+    }
+
+
+def relation_artists(entity, relation_types):
+    names = []
+    for relation in entity.get("relations") or []:
+        if relation.get("type") not in relation_types:
+            continue
+        artist = relation.get("artist") or {}
+        name = artist.get("name")
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def relation_works(recording):
+    works = []
+    for relation in recording.get("relations") or []:
+        work = relation.get("work")
+        if work and work.get("id"):
+            works.append(work)
+    return works
+
+
+def release_sort_key(release):
+    date = release.get("date") or release.get("release-group", {}).get("first-release-date") or "9999"
+    return (date or "9999", release.get("title") or "")
+
+
+def release_label_names(release):
+    names = []
+    for label_info in release.get("label-info") or []:
+        label = label_info.get("label") or {}
+        name = label.get("name")
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def hydrate_release_labels(release):
+    if not release.get("id") or release_label_names(release):
+        return release
+    try:
+        return http_json(
+            f"https://musicbrainz.org/ws/2/release/{release['id']}?"
+            + urlencode({"fmt": "json", "inc": "labels+release-groups"}),
+            timeout=12,
+        )
+    except Exception as exc:
+        log_event("metadata", action="release_lookup_failed", error=str(exc))
+        return release
+
+
+def recording_score(track, recording):
+    score = 0
+    track_title = normalize_text(clean_title(track.get("title")))
+    recording_title = normalize_text(clean_title(recording.get("title")))
+    if recording_title == track_title:
+        score += 6
+    elif track_title and track_title in recording_title:
+        score += 3
+
+    artist = normalize_text(track.get("artist"))
+    credits = " ".join((credit.get("artist") or {}).get("name", "") for credit in recording.get("artist-credit") or [])
+    if artist and artist in normalize_text(credits):
+        score += 4
+
+    if recording.get("releases"):
+        score += 1
+    if relation_works(recording):
+        score += 1
+    return score
+
+
+def lookup_musicbrainz_song_info(track):
+    title = clean_title(track.get("title"))
+    artist = track.get("artist") or ""
+    if not title or not artist:
+        return None
+
+    query = f'recording:"{title}" AND artist:"{artist}"'
+    params = urlencode({
+        "query": query,
+        "fmt": "json",
+        "limit": 5,
+        "inc": "artist-credits+releases+release-groups+work-rels",
+    })
+    log_event("metadata", action="musicbrainz_search", artist=artist, title=title)
+    data = http_json("https://musicbrainz.org/ws/2/recording?" + params)
+    recordings = data.get("recordings") or []
+    if not recordings:
+        return None
+
+    recording = max(recordings, key=lambda candidate: recording_score(track, candidate))
+    releases = sorted(recording.get("releases") or [], key=release_sort_key)
+    original_release = hydrate_release_labels(releases[0]) if releases else {}
+    release_group = original_release.get("release-group") or {}
+    release_date = (
+        release_group.get("first-release-date")
+        or original_release.get("date")
+        or track.get("released")
+        or ""
+    )
+    release_title = release_group.get("title") or original_release.get("title") or track.get("album") or ""
+    release_type = release_group.get("primary-type") or original_release.get("status") or ""
+    labels = release_label_names(original_release)
+
+    writers = relation_artists(recording, {"composer", "lyricist", "writer"})
+    for work in relation_works(recording):
+        try:
+            work_data = http_json(
+                f"https://musicbrainz.org/ws/2/work/{work['id']}?"
+                + urlencode({"fmt": "json", "inc": "artist-rels"}),
+                timeout=12,
+            )
+        except Exception as exc:
+            log_event("metadata", action="work_lookup_failed", error=str(exc))
+            continue
+        for name in relation_artists(work_data, {"composer", "lyricist", "writer"}):
+            if name not in writers:
+                writers.append(name)
+
+    source_url = f"https://musicbrainz.org/recording/{recording.get('id')}" if recording.get("id") else ""
+    return {
+        "source": "MusicBrainz",
+        "sourceUrl": source_url,
+        "confidence": "Matched" if recording_score(track, recording) >= 9 else "Likely match",
+        "originalRelease": release_title,
+        "originalReleaseDate": release_date,
+        "releaseType": release_type,
+        "writtenBy": writers[:4],
+        "label": labels[:3],
+        "musicbrainzId": recording.get("id", ""),
+        "foundAt": utc_now(),
+    }
+
+
+def fallback_song_info(track, source="Shazam"):
+    return {
+        "source": source,
+        "sourceUrl": track.get("url", ""),
+        "confidence": "Fallback",
+        "originalRelease": track.get("album", ""),
+        "originalReleaseDate": track.get("released", ""),
+        "releaseType": "",
+        "writtenBy": [],
+        "label": [],
+        "foundAt": utc_now(),
+    }
+
+
+def lookup_song_info(track):
+    cache = load_metadata_cache()
+    key = metadata_cache_key(track)
+    if key in cache:
+        return cache[key]
+
+    try:
+        info = lookup_wikidata_song_info(track) or lookup_musicbrainz_song_info(track) or fallback_song_info(track)
+    except Exception as exc:
+        log_event("metadata", result="error", error=str(exc))
+        info = fallback_song_info(track)
+
+    cache[key] = info
+    save_metadata_cache(cache)
+    log_event(
+        "metadata",
+        result="matched" if info.get("source") in ("MusicBrainz", "Wikidata") else "fallback",
+        source=info.get("source"),
+        confidence=info.get("confidence"),
+    )
+    return info
+
+
 def synced_lyrics_end(lyrics):
     if not lyrics or not lyrics.get("synced"):
         return None
@@ -229,7 +569,7 @@ def lookup_lyrics(track):
 
     request = Request(
         "https://lrclib.net/api/search?" + urlencode(params),
-        headers={"User-Agent": "vinyl-now-playing-prototype/0.1 (local dashboard)"},
+        headers={"User-Agent": USER_AGENT},
     )
     log_event("lyrics", action="search", artist=track.get("artist", ""), title=track.get("title", ""))
     with urlopen(request, timeout=12) as response:
@@ -294,6 +634,7 @@ def manual_track_from_spec(spec, index, default_artist="", default_album="", def
         "provider": "manual",
     }
     try:
+        track["songInfo"] = lookup_song_info(track)
         track["lyrics"] = lookup_lyrics(track)
     except Exception as exc:
         track["lyrics"] = None
@@ -676,6 +1017,7 @@ class NowPlayingService:
         track = track_from_shazam(json.loads(result.stdout))
         if track:
             log_event("shazam", action="matched", artist=track.get("artist"), title=track.get("title"))
+            track["songInfo"] = lookup_song_info(track)
             try:
                 track["lyrics"] = lookup_lyrics(track)
             except Exception as exc:

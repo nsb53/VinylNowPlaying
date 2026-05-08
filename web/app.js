@@ -10,7 +10,11 @@ const els = {
   released: document.querySelector("#released"),
   lastScan: document.querySelector("#lastScan"),
   nextScan: document.querySelector("#nextScan"),
-  history: document.querySelector("#history"),
+  songInfoSource: document.querySelector("#songInfoSource"),
+  originalRelease: document.querySelector("#originalRelease"),
+  originalReleaseDate: document.querySelector("#originalReleaseDate"),
+  writtenBy: document.querySelector("#writtenBy"),
+  label: document.querySelector("#label"),
   needleLeft: document.querySelector("#needleLeft"),
   needleRight: document.querySelector("#needleRight"),
   meterLeft: document.querySelector("#needleLeft")?.closest(".vu-meter"),
@@ -80,17 +84,20 @@ function setCover(url) {
   }
 }
 
-function renderHistory(history) {
-  els.history.replaceChildren();
-  [...history].reverse().slice(0, 2).forEach((track) => {
-    const item = document.createElement("li");
-    const title = document.createElement("strong");
-    const artist = document.createElement("span");
-    title.textContent = track.title || "Unknown Title";
-    artist.textContent = track.artist || "Unknown Artist";
-    item.append(title, artist);
-    els.history.append(item);
-  });
+function formatList(values) {
+  if (!Array.isArray(values) || !values.length) return "-";
+  return values.filter(Boolean).join(", ") || "-";
+}
+
+function renderSongInfo(track) {
+  const info = track?.songInfo;
+  els.songInfoSource.textContent = info?.source
+    ? `${info.source}${info.confidence ? ` / ${info.confidence}` : ""}`
+    : "-";
+  els.originalRelease.textContent = info?.originalRelease || "-";
+  els.originalReleaseDate.textContent = info?.originalReleaseDate || "-";
+  els.writtenBy.textContent = formatList(info?.writtenBy);
+  els.label.textContent = formatList(info?.label);
 }
 
 function parseSyncedLyrics(synced) {
@@ -396,7 +403,7 @@ function render(data) {
   els.nextScan.textContent = timeUntil(data.nextScanAt);
   renderLyrics(track, data);
   renderLevel(data.level);
-  renderHistory(data.history || []);
+  renderSongInfo(track);
 }
 
 async function refresh() {
