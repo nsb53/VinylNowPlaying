@@ -1,4 +1,4 @@
-const CACHE_NAME = "vinyl-now-playing-v9";
+const CACHE_NAME = "vinyl-now-playing-v10";
 const SHELL_ASSETS = [
   "/",
   "/control",
