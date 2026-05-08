@@ -325,20 +325,6 @@ button,
   pointer-events: none;
 }
 
-.vu-face::after {
-  content: "";
-  position: absolute;
-  left: 10%;
-  right: 10%;
-  top: 38px;
-  height: 74px;
-  border-top: 3px solid rgb(46 31 16 / 42%);
-  border-radius: 50% 50% 0 0;
-  box-shadow:
-    inset 0 10px 0 -8px rgb(141 31 22 / 18%),
-    0 -1px 0 rgb(255 255 255 / 18%);
-}
-
 .vu-scale {
   position: absolute;
   z-index: 2;
@@ -378,19 +364,6 @@ button,
   font-size: 0.76rem;
   font-weight: 900;
   letter-spacing: 0.08em;
-}
-
-.vu-arc::after {
-  content: "";
-  position: absolute;
-  right: -1px;
-  top: -5px;
-  width: 30%;
-  height: 42px;
-  border-top: 5px solid rgb(141 31 22 / 78%);
-  border-radius: 50% 50% 0 0;
-  transform: rotate(8deg);
-  transform-origin: left top;
 }
 
 .vu-needle {
