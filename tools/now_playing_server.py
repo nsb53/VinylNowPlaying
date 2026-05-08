@@ -22,7 +22,7 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.5.9"
+APP_VERSION = "0.6.0"
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 
@@ -380,6 +380,52 @@ def release_sort_key(release):
     return (date or "9999", release.get("title") or "")
 
 
+def suspicious_release_title(value):
+    normalized = normalize_text(value)
+    return any(
+        token in normalized
+        for token in (
+            "remix",
+            "remaster",
+            "karaoke",
+            "tribute",
+            "cover version",
+            "80's edition",
+            "80s edition",
+            "greatest hits",
+            "best of",
+            "hits",
+            "collection",
+            "compilation",
+        )
+    )
+
+
+def credible_release_title(track, value):
+    if not value or suspicious_release_title(value):
+        return False
+    title = normalize_text(clean_title(track.get("title")))
+    release_title = normalize_text(clean_title(value))
+    return bool(release_title)
+
+
+def is_compilation_release(release):
+    release_group = release.get("release-group") or {}
+    secondary_types = [normalize_text(value) for value in release_group.get("secondary-types") or []]
+    return "compilation" in secondary_types
+
+
+def release_display_title(track, release):
+    release_group = release.get("release-group") or {}
+    release_title = release_group.get("title") or release.get("title") or ""
+    release_type = release_group.get("primary-type") or release.get("status") or ""
+    if not credible_release_title(track, release_title):
+        return ""
+    if normalize_text(clean_title(release_title)) == normalize_text(clean_title(track.get("title"))) and release_type:
+        return f"{release_title} ({release_type.casefold()})"
+    return release_title
+
+
 def release_label_names(release):
     names = []
     for label_info in release.get("label-info") or []:
@@ -444,9 +490,23 @@ def lookup_musicbrainz_song_info(track):
     if not recordings:
         return None
 
-    recording = max(recordings, key=lambda candidate: recording_score(track, candidate))
-    releases = sorted(recording.get("releases") or [], key=release_sort_key)
-    original_release = hydrate_release_labels(releases[0]) if releases else {}
+    release_candidates = []
+    for candidate in recordings:
+        for release in candidate.get("releases") or []:
+            if is_compilation_release(release):
+                continue
+            if not release_display_title(track, release):
+                continue
+            release_candidates.append((release_sort_key(release), -recording_score(track, candidate), candidate, release))
+
+    if release_candidates:
+        _, _, recording, selected_release = min(release_candidates)
+    else:
+        recording = max(recordings, key=lambda candidate: recording_score(track, candidate))
+        releases = sorted(recording.get("releases") or [], key=release_sort_key)
+        selected_release = releases[0] if releases else {}
+
+    original_release = hydrate_release_labels(selected_release) if selected_release else {}
     release_group = original_release.get("release-group") or {}
     release_date = (
         release_group.get("first-release-date")
@@ -454,7 +514,7 @@ def lookup_musicbrainz_song_info(track):
         or track.get("released")
         or ""
     )
-    release_title = release_group.get("title") or original_release.get("title") or track.get("album") or ""
+    release_title = release_display_title(track, original_release) or track.get("album") or ""
     release_type = release_group.get("primary-type") or original_release.get("status") or ""
     labels = release_label_names(original_release)
 
@@ -502,6 +562,43 @@ def fallback_song_info(track, source="Shazam"):
     }
 
 
+def merge_song_info(track, wikidata_info=None, musicbrainz_info=None):
+    wikidata_info = wikidata_info or {}
+    musicbrainz_info = musicbrainz_info or {}
+    fallback_info = fallback_song_info(track)
+
+    source_names = [
+        info.get("source")
+        for info in (wikidata_info, musicbrainz_info)
+        if info.get("source")
+    ]
+    source = " + ".join(source_names) if source_names else fallback_info["source"]
+    confidence = "Matched" if source_names else fallback_info["confidence"]
+
+    original_release = musicbrainz_info.get("originalRelease") or ""
+    if not credible_release_title(track, original_release):
+        original_release = ""
+
+    return {
+        "source": source,
+        "sourceUrl": wikidata_info.get("sourceUrl") or musicbrainz_info.get("sourceUrl") or fallback_info.get("sourceUrl"),
+        "confidence": confidence,
+        "originalRelease": original_release,
+        "originalReleaseDate": (
+            wikidata_info.get("originalReleaseDate")
+            or musicbrainz_info.get("originalReleaseDate")
+            or fallback_info.get("originalReleaseDate")
+        ),
+        "releaseType": musicbrainz_info.get("releaseType") or wikidata_info.get("releaseType") or "",
+        "writtenBy": wikidata_info.get("writtenBy") or musicbrainz_info.get("writtenBy") or [],
+        "label": musicbrainz_info.get("label") or wikidata_info.get("label") or [],
+        "producer": wikidata_info.get("producer") or musicbrainz_info.get("producer") or [],
+        "wikidataId": wikidata_info.get("wikidataId", ""),
+        "musicbrainzId": musicbrainz_info.get("musicbrainzId", ""),
+        "foundAt": utc_now(),
+    }
+
+
 def lookup_song_info(track):
     cache = load_metadata_cache()
     key = metadata_cache_key(track)
@@ -509,7 +606,9 @@ def lookup_song_info(track):
         return cache[key]
 
     try:
-        info = lookup_wikidata_song_info(track) or lookup_musicbrainz_song_info(track) or fallback_song_info(track)
+        wikidata_info = lookup_wikidata_song_info(track)
+        musicbrainz_info = lookup_musicbrainz_song_info(track)
+        info = merge_song_info(track, wikidata_info, musicbrainz_info)
     except Exception as exc:
         log_event("metadata", result="error", error=str(exc))
         info = fallback_song_info(track)
@@ -518,7 +617,7 @@ def lookup_song_info(track):
     save_metadata_cache(cache)
     log_event(
         "metadata",
-        result="matched" if info.get("source") in ("MusicBrainz", "Wikidata") else "fallback",
+        result="matched" if info.get("source") != "Shazam" else "fallback",
         source=info.get("source"),
         confidence=info.get("confidence"),
     )
