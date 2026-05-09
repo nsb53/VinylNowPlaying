@@ -22,8 +22,8 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.6.11"
-SONG_INFO_SCHEMA_VERSION = 2
+APP_VERSION = "0.6.16"
+SONG_INFO_SCHEMA_VERSION = 7
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 
@@ -214,6 +214,23 @@ def clean_title(value):
     return value.strip()
 
 
+def songwriter_search_title(value):
+    value = clean_title(value)
+    value = re.sub(r"\s*\[[^\]]+\]\s*$", "", value)
+    value = re.sub(r"[!?.,:;]+$", "", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def songwriter_search_titles(value):
+    title = songwriter_search_title(value)
+    without_parenthetical = songwriter_search_title(re.sub(r"\s*\([^)]*\)\s*$", "", title))
+    return [
+        candidate
+        for candidate in dict.fromkeys((title, without_parenthetical))
+        if candidate
+    ]
+
+
 def metadata_cache_key(track):
     return f"{normalize_text(track.get('artist'))}::{normalize_text(clean_title(track.get('title')))}"
 
@@ -382,6 +399,65 @@ def relation_works(recording):
     return works
 
 
+def relation_recording_titles(entity):
+    titles = []
+    for relation in entity.get("relations") or []:
+        recording = relation.get("recording") or {}
+        title = recording.get("title")
+        if title:
+            titles.append(title)
+    return titles
+
+
+def lookup_musicbrainz_work_songwriters(track):
+    titles = songwriter_search_titles(track.get("title"))
+    if not titles:
+        return None
+
+    def work_score(work):
+        score = 0
+        work_title = normalize_text(songwriter_search_title(work.get("title")))
+        if work_title == normalized_title:
+            score += 8
+        elif normalized_title and normalized_title in work_title:
+            score += 3
+        for alias in work.get("aliases") or []:
+            alias_title = normalize_text(songwriter_search_title(alias.get("name")))
+            if alias_title == normalized_title:
+                score += 4
+        if normalize_text(work.get("type")) == "song":
+            score += 2
+        if relation_artists(work, {"composer", "lyricist", "writer"}):
+            score += 3
+        if any(normalized_title == normalize_text(songwriter_search_title(value)) for value in relation_recording_titles(work)):
+            score += 1
+        return score
+
+    for title in titles:
+        params = urlencode({
+            "query": f'work:"{title}"',
+            "fmt": "json",
+            "limit": 5,
+        })
+        log_event("metadata", action="musicbrainz_work_search", title=title)
+        data = http_json("https://musicbrainz.org/ws/2/work?" + params)
+        works = data.get("works") or []
+        if not works:
+            continue
+
+        normalized_title = normalize_text(title)
+        work = max(works, key=work_score)
+        writers = relation_artists(work, {"composer", "lyricist", "writer"})
+        if work_score(work) >= 8 and writers:
+            return {
+                "writtenBy": writers[:4],
+                "musicbrainzWorkId": work.get("id", ""),
+                "songwriterSourceUrl": f"https://musicbrainz.org/work/{work.get('id')}" if work.get("id") else "",
+            }
+
+    return None
+
+
 def release_sort_key(release):
     date = release.get("date") or release.get("release-group", {}).get("first-release-date") or "9999"
     return (date or "9999", release.get("title") or "")
@@ -504,10 +580,17 @@ def lookup_musicbrainz_song_info(track):
                 continue
             if not release_display_title(track, release):
                 continue
-            release_candidates.append((release_sort_key(release), -recording_score(track, candidate), candidate, release))
+            release_candidates.append((
+                release_sort_key(release),
+                -recording_score(track, candidate),
+                candidate.get("id", ""),
+                release.get("id", ""),
+                candidate,
+                release,
+            ))
 
     if release_candidates:
-        _, _, recording, selected_release = min(release_candidates)
+        _, _, _, _, recording, selected_release = min(release_candidates)
     else:
         recording = max(recordings, key=lambda candidate: recording_score(track, candidate))
         releases = sorted(recording.get("releases") or [], key=release_sort_key)
@@ -540,6 +623,13 @@ def lookup_musicbrainz_song_info(track):
             if name not in writers:
                 writers.append(name)
 
+    fallback_work = None
+    if not writers:
+        fallback_work = lookup_musicbrainz_work_songwriters(track)
+        for name in (fallback_work or {}).get("writtenBy") or []:
+            if name not in writers:
+                writers.append(name)
+
     source_url = f"https://musicbrainz.org/recording/{recording.get('id')}" if recording.get("id") else ""
     return {
         "source": "MusicBrainz",
@@ -551,6 +641,8 @@ def lookup_musicbrainz_song_info(track):
         "writtenBy": writers[:4],
         "label": labels[:3],
         "musicbrainzId": recording.get("id", ""),
+        "musicbrainzWorkId": (fallback_work or {}).get("musicbrainzWorkId", ""),
+        "songwriterSourceUrl": (fallback_work or {}).get("songwriterSourceUrl", ""),
         "foundAt": utc_now(),
     }
 
@@ -600,12 +692,14 @@ def merge_song_info(track, wikidata_info=None, musicbrainz_info=None):
             or musicbrainz_info.get("originalReleaseDate")
         ),
         "releaseType": musicbrainz_info.get("releaseType") or wikidata_info.get("releaseType") or "",
-        "writtenBy": wikidata_info.get("writtenBy") or musicbrainz_info.get("writtenBy") or [],
+        "writtenBy": musicbrainz_info.get("writtenBy") or wikidata_info.get("writtenBy") or [],
         "label": fallback_info.get("label") or musicbrainz_info.get("label") or wikidata_info.get("label") or [],
         "genre": fallback_info.get("genre") or musicbrainz_info.get("genre") or wikidata_info.get("genre") or "",
         "producer": wikidata_info.get("producer") or musicbrainz_info.get("producer") or [],
         "wikidataId": wikidata_info.get("wikidataId", ""),
         "musicbrainzId": musicbrainz_info.get("musicbrainzId", ""),
+        "musicbrainzWorkId": musicbrainz_info.get("musicbrainzWorkId", ""),
+        "songwriterSourceUrl": musicbrainz_info.get("songwriterSourceUrl", ""),
         "schemaVersion": SONG_INFO_SCHEMA_VERSION,
         "foundAt": utc_now(),
     }
@@ -617,6 +711,7 @@ def lookup_song_info(track):
     if key in cache and cache[key].get("schemaVersion") == SONG_INFO_SCHEMA_VERSION:
         return cache[key]
 
+    cacheable = True
     try:
         wikidata_info = lookup_wikidata_song_info(track)
         musicbrainz_info = lookup_musicbrainz_song_info(track)
@@ -624,9 +719,11 @@ def lookup_song_info(track):
     except Exception as exc:
         log_event("metadata", result="error", error=str(exc))
         info = fallback_song_info(track)
+        cacheable = False
 
-    cache[key] = info
-    save_metadata_cache(cache)
+    if cacheable:
+        cache[key] = info
+        save_metadata_cache(cache)
     log_event(
         "metadata",
         result="matched" if info.get("source") != "Shazam" else "fallback",
