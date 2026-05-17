@@ -26,8 +26,8 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
-APP_VERSION = "0.8.1"
-SONG_INFO_SCHEMA_VERSION = 10
+APP_VERSION = "0.8.3"
+SONG_INFO_SCHEMA_VERSION = 11
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 load_dotenv(ROOT / ".env")
@@ -241,6 +241,25 @@ def fallback_song_info(track, source="Shazam", reason=""):
     return info
 
 
+PRIOR_QUESTIONS_LIMIT = 30
+
+
+def prior_questions_for_artist(cache, track, limit=PRIOR_QUESTIONS_LIMIT):
+    artist_key = normalize_text(track.get("artist") or "")
+    own_key = metadata_cache_key(track)
+    if not artist_key:
+        return []
+    questions = []
+    for cache_key, entry in cache.items():
+        if cache_key == own_key or not cache_key.startswith(artist_key + "::"):
+            continue
+        for item in entry.get("trivia") or []:
+            question = (item.get("question") or "").strip()
+            if question:
+                questions.append(question)
+    return questions[-limit:]
+
+
 def lookup_song_info(track):
     cache = load_metadata_cache()
     key = metadata_cache_key(track)
@@ -252,7 +271,8 @@ def lookup_song_info(track):
         log_event("metadata", result="skipped", reason="no_gemini_api_key")
         return fallback_song_info(track, reason="no_api_key")
 
-    enriched = gemini_metadata.lookup(track, logger=log_event)
+    avoid_questions = prior_questions_for_artist(cache, track)
+    enriched = gemini_metadata.lookup(track, logger=log_event, avoid_questions=avoid_questions)
     if not enriched:
         return fallback_song_info(track, reason="gemini_failed")
 
@@ -275,6 +295,7 @@ def lookup_song_info(track):
         source="Gemini",
         trivia_count=len(info["trivia"]),
         writers=len(info["writtenBy"]),
+        avoid_count=len(avoid_questions),
     )
     return info
 

@@ -89,7 +89,7 @@ def is_configured():
     return bool(os.environ.get("GEMINI_API_KEY", "").strip())
 
 
-def _build_prompt(track):
+def _build_prompt(track, avoid_questions=None):
     artist = (track.get("artist") or "").strip()
     title = (track.get("title") or "").strip()
     album = (track.get("album") or "").strip()
@@ -102,37 +102,60 @@ def _build_prompt(track):
         context_lines.append(f"Release year (as identified by Shazam): {released}")
     context = "\n".join(context_lines)
 
-    return f"""You are a music historian compiling reference info for a vinyl listening
-dashboard. Output JSON matching the provided schema. Be accurate. If you do
-not know a metadata field with confidence, return an empty string or empty
-array. Never invent facts.
+    avoid_block = ""
+    avoid_list = [q for q in (avoid_questions or []) if q]
+    if avoid_list:
+        bullets = "\n".join(f"- {q}" for q in avoid_list)
+        avoid_block = f"""
+Recently-shown questions for this same artist (DO NOT repeat these or close
+paraphrases of them — pick different angles):
 
-Trivia rules — return {TRIVIA_COUNT} multiple-choice questions:
+{bullets}
+"""
+
+    return f"""You are a music historian compiling reference info for a vinyl listening
+dashboard. Output JSON matching the provided schema.
+
+Accuracy comes first. Every claim must be a real, verifiable fact from
+published sources (interviews, liner notes, band biographies, documentaries).
+If you are not confident a fact is true, exclude the question rather than
+guess. It is better to return 3 solid items than {TRIVIA_COUNT} where one
+is invented. Metadata fields (originalRelease, writtenBy, etc.): return empty
+string or empty array if not confident. Never invent.
+
+Trivia rules — return up to {TRIVIA_COUNT} multiple-choice questions:
 
 1. Topic mix: aim for roughly 2 about the song itself, 2 about the album it
    came from, and 2 about the band/artist's broader career. Use the "topic"
-   field to label each item. This variety matters — the dashboard plays many
-   tracks by the same artist, so questions that lean too song-specific end up
-   feeling repetitive across the listening session.
+   field to label each item.
 
-2. Difficulty: keep questions accessible. Aim for fan-knowledge level, not
-   trivia-night-finals. Concrete, well-known facts beat obscure deep cuts.
+2. Favor interesting angles over generic facts:
+   - For SONG: inspiration behind the lyrics, where/when it was written, what
+     was happening in the writers' lives at the time, recording-room stories,
+     unusual instruments or takes, samples or covers it inspired.
+   - For ALBUM: writing/recording location and circumstances, production
+     quirks, cover art origin, sequencing or naming decisions, near-disasters
+     during the sessions.
+   - For BAND: band-name origin, pre-fame day jobs, unusual gear or recording
+     techniques, side projects, weird fan-culture moments, unexpected
+     collaborations, member quirks. Avoid generic biography ("formed in X,
+     signed to Y").
 
-3. Variety across tracks by the same band: avoid the most-cited facts
-   (e.g. "Stevie Nicks wrote Dreams about her breakup with Lindsey
-   Buckingham") if they're likely to come up for almost every song. Lean
-   toward less-recycled angles when you can.
+3. AVOID these boring categories entirely:
+   - Billboard chart positions, weeks at #1, sales figures, RIAA certifications
+   - Grammy/award counts unless tied to a memorable story
+   - "Who wrote it?" when the writer is already given in writtenBy
 
-4. Each item needs exactly 4 plausible choices in "choices". The correct one
-   is identified by zero-based "correctIndex". Distractors should be
-   believable (same era, same genre, comparable artists) — not obviously
-   wrong filler.
+4. Difficulty: fan-knowledge level. Not obscure deep cuts, not trivia-night
+   finals. Someone who likes the artist should be able to guess most of them.
 
-5. "answer" is a one-sentence explanation of why the correct choice is right.
+5. Each item needs exactly 4 plausible choices. Distractors should be
+   believable (same era, same genre, comparable artists or albums) — not
+   obvious filler.
 
-If you cannot produce {TRIVIA_COUNT} solid items, return fewer rather than
-inventing weak ones.
-
+6. "answer" is a one-sentence factual explanation of why the correct choice
+   is right.
+{avoid_block}
 {context}
 """
 
@@ -204,14 +227,18 @@ def _coerce(payload):
     }
 
 
-def lookup(track, logger=None):
-    """Call Gemini for metadata + trivia. Returns dict or None on failure."""
+def lookup(track, logger=None, avoid_questions=None):
+    """Call Gemini for metadata + trivia. Returns dict or None on failure.
+
+    avoid_questions: optional list of previously-shown trivia questions for the
+    same artist; passed to the prompt as a "don't repeat these" hint.
+    """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         return None
 
     payload = {
-        "contents": [{"parts": [{"text": _build_prompt(track)}]}],
+        "contents": [{"parts": [{"text": _build_prompt(track, avoid_questions=avoid_questions)}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseSchema": RESPONSE_SCHEMA,
