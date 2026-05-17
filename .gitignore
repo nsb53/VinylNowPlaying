@@ -4,3 +4,5 @@ __pycache__/
 .pycache/
 state/
 captures/
+.env
+.env.*

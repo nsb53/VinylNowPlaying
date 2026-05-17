@@ -40,6 +40,40 @@
               <div class="spectrum-wrap hidden" id="spectrumWrap">
                 <canvas id="spectrum" class="spectrum" aria-label="Live spectrum analyzer"></canvas>
               </div>
+              <div class="linear-panel hidden" id="linearPanel">
+                <div class="linear-meter">
+                  <div class="linear-title">
+                    <span>L</span>
+                    <strong id="linearLeftDb">-</strong>
+                  </div>
+                  <div class="linear-track">
+                    <div id="linearLeftBar" class="linear-bar"></div>
+                    <div class="linear-scale">
+                      <span>-40</span>
+                      <span>-20</span>
+                      <span>-10</span>
+                      <span>-3</span>
+                      <span>0</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="linear-meter">
+                  <div class="linear-title">
+                    <span>R</span>
+                    <strong id="linearRightDb">-</strong>
+                  </div>
+                  <div class="linear-track">
+                    <div id="linearRightBar" class="linear-bar"></div>
+                    <div class="linear-scale">
+                      <span>-40</span>
+                      <span>-20</span>
+                      <span>-10</span>
+                      <span>-3</span>
+                      <span>0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div class="vu-meter">
                 <div class="vu-face">
                   <div class="vu-scale">
@@ -81,43 +115,32 @@
           </section>
 
           <section class="track-panel">
-            <dl class="meta">
+            <dl class="track-info">
               <div>
                 <dt>Album</dt>
                 <dd id="album">-</dd>
               </div>
               <div>
-                <dt>Released</dt>
+                <dt>First Released</dt>
                 <dd id="released">-</dd>
               </div>
               <div>
-                <dt>Last Scan</dt>
-                <dd id="lastScan">-</dd>
+                <dt>Written By</dt>
+                <dd id="writtenBy">-</dd>
               </div>
               <div>
-                <dt>Next Scan</dt>
-                <dd id="nextScan">-</dd>
+                <dt>Genre</dt>
+                <dd id="genre">-</dd>
               </div>
             </dl>
-            <section class="song-info-band">
-              <dl class="song-info">
-                <div>
-                  <dt>Original Album / Single</dt>
-                  <dd id="originalRelease">-</dd>
-                </div>
-                <div>
-                  <dt>First Released</dt>
-                  <dd id="originalReleaseDate">-</dd>
-                </div>
-                <div>
-                  <dt>Written By</dt>
-                  <dd id="writtenBy">-</dd>
-                </div>
-                <div>
-                  <dt>Genre</dt>
-                  <dd id="genre">-</dd>
-                </div>
-              </dl>
+            <section class="trivia-panel hidden" id="triviaPanel" aria-live="polite">
+              <div class="trivia-header">
+                <span>Trivia <em id="triviaTopic" class="trivia-topic"></em></span>
+                <strong id="triviaIndex">-</strong>
+              </div>
+              <p class="trivia-question" id="triviaQuestion"></p>
+              <ul class="trivia-choices" id="triviaChoices"></ul>
+              <p class="trivia-answer" id="triviaAnswer"></p>
             </section>
           </section>
         </section>

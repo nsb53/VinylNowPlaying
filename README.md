@@ -1,6 +1,6 @@
 # Vinyl Now Playing
 
-Current app version: `0.6.1`
+Current app version: `0.8.1`
 
 A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a USB audio input, identifies the current track, shows album art, displays lyrics from LRCLIB, and renders live stereo-style VU meters or an FFT spectrum analyzer. It is designed to run as a fullscreen kiosk on a Raspberry Pi, with Mac support for development and testing.
 
@@ -8,7 +8,7 @@ A local-first Now Playing dashboard for a vinyl/listening setup. It listens to a
 
 - Shazam-style track recognition with `shazamio`
 - Album art and track metadata from the recognition result
-- Song info metadata from Wikidata and MusicBrainz, with local caching
+- Extra song info (original release, songwriters, genre) and multiple-choice trivia (about the song, album, and band) from Google Gemini, with local caching
 - Lyrics lookup from LRCLIB, including synced lyrics when available
 - Phone-friendly control page for lyric offset, manual track override, and plain lyric scrolling
 - Live VU meters from the capture input
@@ -172,6 +172,20 @@ The main recognition path uses `shazamio` and does not require an API key. LRCLI
 This project is intended for personal/local experimentation and is not affiliated with, endorsed by, or supported by Shazam or Apple. The `shazamio` recognition path is unofficial; if you need a supported commercial or production integration, use Apple's ShazamKit instead and review Apple's terms for your use case.
 
 An older optional AcoustID helper remains in `tools/identify_acoustid.py` for experimentation. It requires `fpcalc` and an `ACOUSTID_API_KEY` environment variable, but it is not used by the dashboard server.
+
+## Gemini API Key (Song Info + Trivia)
+
+The dashboard uses Google Gemini (`gemini-2.5-flash`) to fetch original-release, songwriter, genre, and 4 trivia Q&A per song. Results are cached per `(artist, title)` in `state/metadata-cache.json`, so a given track is only looked up once.
+
+Get a key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey), then create a `.env` file in the repo root:
+
+```sh
+echo 'GEMINI_API_KEY=your-key-here' > .env
+```
+
+`.env` is gitignored. If `GEMINI_API_KEY` is missing or empty, the dashboard falls back to Shazam-only metadata (no songwriter info, no trivia) and logs the reason on startup.
+
+For the Raspberry Pi, just `scp .env pi@<host>:/path/to/VinylNowPlaying/.env` after copying the rest of the repo. Then `chmod 600 .env` on the Pi if you want to be tidy.
 
 ## Runtime Files
 

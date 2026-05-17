@@ -9,11 +9,13 @@ const els = {
   album: document.querySelector("#album"),
   released: document.querySelector("#released"),
   genre: document.querySelector("#genre"),
-  lastScan: document.querySelector("#lastScan"),
-  nextScan: document.querySelector("#nextScan"),
-  originalRelease: document.querySelector("#originalRelease"),
-  originalReleaseDate: document.querySelector("#originalReleaseDate"),
   writtenBy: document.querySelector("#writtenBy"),
+  triviaPanel: document.querySelector("#triviaPanel"),
+  triviaTopic: document.querySelector("#triviaTopic"),
+  triviaQuestion: document.querySelector("#triviaQuestion"),
+  triviaChoices: document.querySelector("#triviaChoices"),
+  triviaAnswer: document.querySelector("#triviaAnswer"),
+  triviaIndex: document.querySelector("#triviaIndex"),
   needleLeft: document.querySelector("#needleLeft"),
   needleRight: document.querySelector("#needleRight"),
   meterLeft: document.querySelector("#needleLeft")?.closest(".vu-meter"),
@@ -22,6 +24,11 @@ const els = {
   rightDb: document.querySelector("#rightDb"),
   spectrum: document.querySelector("#spectrum"),
   spectrumWrap: document.querySelector("#spectrumWrap"),
+  linearPanel: document.querySelector("#linearPanel"),
+  linearLeftBar: document.querySelector("#linearLeftBar"),
+  linearRightBar: document.querySelector("#linearRightBar"),
+  linearLeftDb: document.querySelector("#linearLeftDb"),
+  linearRightDb: document.querySelector("#linearRightDb"),
   lyricsMode: document.querySelector("#lyricsMode"),
   lyricsSource: document.querySelector("#lyricsSource"),
   lyricsText: document.querySelector("#lyricsText"),
@@ -136,12 +143,105 @@ function formatList(values) {
   return values.filter(Boolean).join(", ") || "-";
 }
 
-function renderSongInfo(track) {
+function renderTrackInfo(track) {
   const info = track?.songInfo;
-  els.originalRelease.textContent = info?.originalRelease || "-";
-  els.originalReleaseDate.textContent = info?.originalReleaseDate || "-";
+  els.album.textContent = info?.originalRelease || track?.album || "-";
+  els.released.textContent = info?.originalReleaseDate || track?.released || "-";
   els.writtenBy.textContent = formatList(info?.writtenBy);
-  els.genre.textContent = track?.genre || info?.genre || "-";
+  els.genre.textContent = info?.genre || track?.genre || "-";
+}
+
+const TRIVIA_QUESTION_MS = 20000;
+const TRIVIA_ANSWER_MS = 10000;
+const TRIVIA_CHOICE_LETTERS = ["A", "B", "C", "D"];
+const triviaState = {
+  trackId: null,
+  items: [],
+  index: 0,
+  phase: "question",
+  phaseStartedAt: 0,
+  rendered: { itemKey: null, phase: null },
+};
+
+function resetTrivia(trackId, items) {
+  triviaState.trackId = trackId;
+  triviaState.items = Array.isArray(items) ? items : [];
+  triviaState.index = 0;
+  triviaState.phase = "question";
+  triviaState.phaseStartedAt = Date.now();
+  triviaState.rendered = { itemKey: null, phase: null };
+}
+
+function renderTrivia(track) {
+  const items = track?.songInfo?.trivia || [];
+  const trackId = track?.id || null;
+  if (trackId !== triviaState.trackId) {
+    resetTrivia(trackId, items);
+  } else if (triviaState.items.length !== items.length) {
+    triviaState.items = items;
+    if (triviaState.index >= items.length) triviaState.index = 0;
+    triviaState.rendered = { itemKey: null, phase: null };
+  }
+  if (!triviaState.items.length || !track) {
+    els.triviaPanel?.classList.add("hidden");
+    return;
+  }
+  els.triviaPanel?.classList.remove("hidden");
+  paintTrivia();
+}
+
+function paintTrivia() {
+  if (!triviaState.items.length || !els.triviaChoices) return;
+  const item = triviaState.items[triviaState.index];
+  if (!item) return;
+
+  const itemKey = `${triviaState.trackId || ""}:${triviaState.index}`;
+  const needsChoicesRebuild = triviaState.rendered.itemKey !== itemKey;
+  if (needsChoicesRebuild) {
+    els.triviaQuestion.textContent = item.question || "";
+    els.triviaTopic.textContent = item.topic ? item.topic[0].toUpperCase() + item.topic.slice(1) : "";
+    els.triviaAnswer.textContent = item.answer || "";
+    els.triviaChoices.replaceChildren();
+    (item.choices || []).forEach((choice, idx) => {
+      const li = document.createElement("li");
+      li.className = "trivia-choice";
+      li.dataset.index = String(idx);
+      const letter = document.createElement("span");
+      letter.className = "trivia-choice-letter";
+      letter.textContent = TRIVIA_CHOICE_LETTERS[idx] || "";
+      const text = document.createElement("span");
+      text.className = "trivia-choice-text";
+      text.textContent = choice;
+      li.append(letter, text);
+      els.triviaChoices.append(li);
+    });
+    els.triviaIndex.textContent = `${triviaState.index + 1} / ${triviaState.items.length}`;
+  }
+
+  if (needsChoicesRebuild || triviaState.rendered.phase !== triviaState.phase) {
+    const revealed = triviaState.phase === "answer";
+    els.triviaPanel.classList.toggle("revealed", revealed);
+    els.triviaChoices.querySelectorAll(".trivia-choice").forEach((node, idx) => {
+      node.classList.toggle("correct", revealed && idx === item.correctIndex);
+    });
+  }
+
+  triviaState.rendered = { itemKey, phase: triviaState.phase };
+}
+
+function tickTrivia() {
+  if (!triviaState.items.length) return;
+  const elapsed = Date.now() - triviaState.phaseStartedAt;
+  const duration = triviaState.phase === "question" ? TRIVIA_QUESTION_MS : TRIVIA_ANSWER_MS;
+  if (elapsed < duration) return;
+  if (triviaState.phase === "question") {
+    triviaState.phase = "answer";
+  } else {
+    triviaState.phase = "question";
+    triviaState.index = (triviaState.index + 1) % triviaState.items.length;
+  }
+  triviaState.phaseStartedAt = Date.now();
+  paintTrivia();
 }
 
 function parseSyncedLyrics(synced) {
@@ -269,6 +369,10 @@ function dbToNeedle(db) {
   return -42 + normalized * 84;
 }
 
+function dbToLinearPercent(db) {
+  return clamp((db + 52) / 52, 0, 1) * 100;
+}
+
 function formatDb(db) {
   return Number.isFinite(db) ? `${db.toFixed(1)} dBFS` : "-";
 }
@@ -315,10 +419,14 @@ function animateMeters() {
   meterState.leftDisplay = approach(meterState.leftDisplay, meterState.leftTarget, deltaSeconds);
   meterState.rightDisplay = approach(meterState.rightDisplay, meterState.rightTarget, deltaSeconds);
 
-  els.needleLeft.style.transform = `translateX(-50%) rotate(${dbToNeedle(meterState.leftDisplay)}deg)`;
-  els.needleRight.style.transform = `translateX(-50%) rotate(${dbToNeedle(meterState.rightDisplay)}deg)`;
-  els.leftDb.textContent = formatDb(meterState.leftDisplay);
-  els.rightDb.textContent = formatDb(meterState.rightDisplay);
+  if (els.needleLeft) els.needleLeft.style.transform = `translateX(-50%) rotate(${dbToNeedle(meterState.leftDisplay)}deg)`;
+  if (els.needleRight) els.needleRight.style.transform = `translateX(-50%) rotate(${dbToNeedle(meterState.rightDisplay)}deg)`;
+  if (els.leftDb) els.leftDb.textContent = formatDb(meterState.leftDisplay);
+  if (els.rightDb) els.rightDb.textContent = formatDb(meterState.rightDisplay);
+  if (els.linearLeftDb) els.linearLeftDb.textContent = formatDb(meterState.leftDisplay);
+  if (els.linearRightDb) els.linearRightDb.textContent = formatDb(meterState.rightDisplay);
+  if (els.linearLeftBar) els.linearLeftBar.style.width = `${dbToLinearPercent(meterState.leftDisplay).toFixed(1)}%`;
+  if (els.linearRightBar) els.linearRightBar.style.width = `${dbToLinearPercent(meterState.rightDisplay).toFixed(1)}%`;
 
   const leftGlow = clamp((meterState.leftDisplay + 56) / 42, 0, 1);
   const rightGlow = clamp((meterState.rightDisplay + 56) / 42, 0, 1);
@@ -393,30 +501,26 @@ function render(data) {
   els.statusDot.classList.toggle("error", data.status === "error");
   const meterDisplayMode = data.config?.meterDisplayMode || "vu";
   document.body.dataset.vuTheme = data.config?.vuMeterTheme || "amber";
+  document.body.dataset.meterMode = meterDisplayMode;
   els.spectrumWrap?.classList.toggle("hidden", meterDisplayMode !== "spectrum");
-  els.meterLeft?.classList.toggle("hidden", meterDisplayMode === "spectrum");
-  els.meterRight?.classList.toggle("hidden", meterDisplayMode === "spectrum");
+  els.linearPanel?.classList.toggle("hidden", meterDisplayMode !== "linear");
+  els.meterLeft?.classList.toggle("hidden", meterDisplayMode !== "vu");
+  els.meterRight?.classList.toggle("hidden", meterDisplayMode !== "vu");
 
   if (track) {
     els.title.textContent = track.title || "Unknown Title";
     els.artist.textContent = track.artist || "Unknown Artist";
-    els.album.textContent = track.album || "-";
-    els.released.textContent = track.released || "-";
     renderArtwork(track);
-
   } else {
     els.title.textContent = "Listening...";
     els.artist.textContent = data.error || "Waiting for the first recognition pass.";
-    els.album.textContent = "-";
-    els.released.textContent = "-";
     renderArtwork(null);
   }
 
-  els.lastScan.textContent = data.lastScan ? timeAgo(data.lastScan.finishedAt) : "-";
-  els.nextScan.textContent = timeUntil(data.nextScanAt);
   renderLyrics(track, data);
   renderLevel(data.level);
-  renderSongInfo(track);
+  renderTrackInfo(track);
+  renderTrivia(track);
 }
 
 async function refresh() {
@@ -444,3 +548,4 @@ setInterval(() => renderArtwork(latestState?.current), 1000);
 setInterval(refresh, 5000);
 setInterval(refreshLevel, 250);
 setInterval(refreshLyricsDisplay, 500);
+setInterval(tickTrivia, 500);

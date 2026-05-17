@@ -54,6 +54,26 @@ aplay captures/pi-test.wav
 
 If that fails, try the other device name from `arecord -L`.
 
+## 3b. Copy the Gemini API key
+
+Song info and trivia come from Google Gemini. Copy the `.env` file from your
+dev machine to the Pi (or create one fresh):
+
+```sh
+scp .env pi@<pi-ip>:/home/pi/VinylNowPlaying/.env
+# on the Pi:
+chmod 600 .env
+```
+
+Contents:
+
+```text
+GEMINI_API_KEY=your-key-here
+```
+
+If the file is missing or the key is empty, the dashboard still runs but with
+Shazam-only metadata (no songwriters, no trivia).
+
 ## 4. Test the dashboard manually
 
 ```sh

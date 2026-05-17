@@ -4,8 +4,12 @@
   }
 
   window.addEventListener("load", function () {
-    navigator.serviceWorker.register("/service-worker.js").catch(function (error) {
-      console.warn("Service worker registration failed:", error);
+    navigator.serviceWorker.getRegistrations().then(function (registrations) {
+      return Promise.all(registrations.map(function (registration) {
+        return registration.unregister();
+      }));
+    }).catch(function (error) {
+      console.warn("Service worker unregister failed:", error);
     });
   });
 })();
