@@ -6,3 +6,4 @@ state/
 captures/
 .env
 .env.*
+!.env.example
