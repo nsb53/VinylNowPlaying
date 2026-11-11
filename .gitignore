@@ -6,3 +6,6 @@ state/
 captures/
 .env
 .env.*
+!.env.example
+frontend/node_modules/
+.DS_Store

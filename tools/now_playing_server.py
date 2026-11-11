@@ -24,6 +24,8 @@ ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
+DIST_ROOT = WEB_ROOT / "dist"
+DISPLAY_THEMES = ("mcm", "mcm-night", "sleeve")
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
 APP_VERSION = "0.8.3"
@@ -484,6 +486,9 @@ class NowPlayingService:
         vu_meter_theme = self.settings.get("vuMeterTheme", "amber")
         if vu_meter_theme not in ("amber", "green", "blue"):
             vu_meter_theme = "amber"
+        display_theme = self.settings.get("displayTheme", DISPLAY_THEMES[0])
+        if display_theme not in DISPLAY_THEMES:
+            display_theme = DISPLAY_THEMES[0]
         self.args = args
         self.lock = threading.Lock()
         self.scan_requested = threading.Event()
@@ -515,6 +520,7 @@ class NowPlayingService:
                 "defaultLyricOffsetSeconds": lyric_default_offset,
                 "meterDisplayMode": meter_display_mode,
                 "vuMeterTheme": vu_meter_theme,
+                "displayTheme": display_theme,
             }
         )
         self.state.lyricOffsetSeconds = lyric_default_offset
@@ -530,12 +536,17 @@ class NowPlayingService:
         with self.lock:
             return self.state.level or {}
 
+    def display_theme(self):
+        with self.lock:
+            return self.state.config["displayTheme"]
+
     def settings_snapshot(self):
         with self.lock:
             return {
                 "defaultLyricOffsetSeconds": self.state.config["defaultLyricOffsetSeconds"],
                 "meterDisplayMode": self.state.config["meterDisplayMode"],
                 "vuMeterTheme": self.state.config["vuMeterTheme"],
+                "displayTheme": self.state.config["displayTheme"],
             }
 
     def update(self, **changes):
@@ -719,7 +730,7 @@ class NowPlayingService:
                 return
             self.set_manual_track_locked(self.state.manualIndex + 1)
 
-    def update_settings(self, default_lyric_offset=None, meter_display_mode=None, vu_meter_theme=None):
+    def update_settings(self, default_lyric_offset=None, meter_display_mode=None, vu_meter_theme=None, display_theme=None):
         with self.lock:
             if default_lyric_offset is not None:
                 value = max(-30.0, min(60.0, float(default_lyric_offset)))
@@ -732,12 +743,16 @@ class NowPlayingService:
             if vu_meter_theme in ("amber", "green", "blue"):
                 self.state.config["vuMeterTheme"] = vu_meter_theme
                 self.settings["vuMeterTheme"] = vu_meter_theme
+            if display_theme in DISPLAY_THEMES:
+                self.state.config["displayTheme"] = display_theme
+                self.settings["displayTheme"] = display_theme
             save_settings(self.settings)
             self.write_state_locked()
             return {
                 "defaultLyricOffsetSeconds": self.state.config["defaultLyricOffsetSeconds"],
                 "meterDisplayMode": self.state.config["meterDisplayMode"],
                 "vuMeterTheme": self.state.config["vuMeterTheme"],
+                "displayTheme": self.state.config["displayTheme"],
             }
 
     def is_music_active(self):
@@ -1014,6 +1029,9 @@ class Handler(SimpleHTTPRequestHandler):
     def translate_path(self, path):
         parsed = urlparse(path)
         if parsed.path == "/":
+            built = DIST_ROOT / "index.html"
+            return str(built if built.exists() else WEB_ROOT / "index.html")
+        if parsed.path == "/classic":
             return str(WEB_ROOT / "index.html")
         if parsed.path == "/control":
             return str(WEB_ROOT / "control.html")
@@ -1028,6 +1046,41 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def stream_events(self):
+        """Server-sent events: audio levels as they arrive, plus theme changes."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        last_stamp = None
+        last_theme = None
+        last_write = time.monotonic()
+        try:
+            while not self.service.stop_requested.is_set():
+                chunks = []
+                theme = self.service.display_theme()
+                if theme != last_theme:
+                    last_theme = theme
+                    chunks.append(f"event: theme\ndata: {json.dumps(theme)}\n\n")
+                level = self.service.level_snapshot()
+                stamp = level.get("updatedAt")
+                if stamp != last_stamp:
+                    last_stamp = stamp
+                    payload = {
+                        "leftRmsDb": level.get("leftRmsDb", level.get("rmsDb")),
+                        "rightRmsDb": level.get("rightRmsDb", level.get("rmsDb")),
+                    }
+                    chunks.append(f"data: {json.dumps(payload)}\n\n")
+                elif time.monotonic() - last_write > 10:
+                    chunks.append(": keepalive\n\n")
+                if chunks:
+                    self.wfile.write("".join(chunks).encode("utf-8"))
+                    self.wfile.flush()
+                    last_write = time.monotonic()
+                time.sleep(0.03)
+        except OSError:
+            pass
+
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/api/state":
@@ -1038,6 +1091,9 @@ class Handler(SimpleHTTPRequestHandler):
             return
         if parsed.path == "/api/settings":
             self.send_json(self.service.settings_snapshot())
+            return
+        if parsed.path == "/api/stream":
+            self.stream_events()
             return
         return super().do_GET()
 
@@ -1083,13 +1139,14 @@ class Handler(SimpleHTTPRequestHandler):
                 default_lyric_offset=payload.get("defaultLyricOffsetSeconds"),
                 meter_display_mode=payload.get("meterDisplayMode"),
                 vu_meter_theme=payload.get("vuMeterTheme"),
+                display_theme=payload.get("displayTheme"),
             )
             self.send_json({"ok": True, **result})
             return
         self.send_json({"error": "not found"}, status=404)
 
     def log_message(self, format, *args):
-        if self.path.startswith("/api/level"):
+        if self.path.startswith(("/api/level", "/api/stream")):
             return
         print(f"[http] {self.address_string()} {format % args}")
 
