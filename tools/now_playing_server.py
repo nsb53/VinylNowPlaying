@@ -26,6 +26,9 @@ STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 DIST_ROOT = WEB_ROOT / "dist"
 DISPLAY_THEMES = ("mcm", "mcm-night", "sleeve")
+# A repeat match further than this from the expected position needs a second
+# scan to confirm it before the lyric timing is moved.
+RESYNC_TOLERANCE_SECONDS = 3.0
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
 APP_VERSION = "0.8.3"
@@ -207,7 +210,9 @@ def track_from_shazam(result):
         "cover": images.get("coverarthq") or images.get("coverart", ""),
         "artistImage": images.get("background") or share.get("avatar", ""),
         "recognizedAt": utc_now(),
-        "recognizedOffset": min(offsets) if offsets else None,
+        # Shazam lists its best match first. The offset is where the start of
+        # the sample falls in the song.
+        "recognizedOffset": offsets[0] if offsets else None,
         "provider": "shazam",
     }
 
@@ -321,6 +326,15 @@ def playback_position(track, lyric_offset_seconds=0):
         offset = 0
     elapsed = datetime.now(timezone.utc) - datetime.fromisoformat(track["recognizedAt"])
     return offset + elapsed.total_seconds() + lyric_offset_seconds
+
+
+def position_at(track, when_iso):
+    """Where the track's current timing says the song was at the given moment."""
+    offset = track.get("recognizedOffset") if track else None
+    if not isinstance(offset, (int, float)) or not track.get("recognizedAt"):
+        return None
+    elapsed = datetime.fromisoformat(when_iso) - datetime.fromisoformat(track["recognizedAt"])
+    return offset + elapsed.total_seconds()
 
 
 def lyrics_score(track, candidate):
@@ -491,6 +505,7 @@ class NowPlayingService:
             display_theme = DISPLAY_THEMES[0]
         self.args = args
         self.lock = threading.Lock()
+        self.pending_resync = None
         self.scan_requested = threading.Event()
         self.stop_requested = threading.Event()
         self.scanning = threading.Lock()
@@ -793,12 +808,46 @@ class NowPlayingService:
                     self.clear_manual_locked("Manual override cleared after silence")
                 self.clear_now_playing_after_silence_if_needed_locked(now)
 
+    def resync_locked(self, fresh):
+        """Correct the playing track's timing from a repeat match of the same song.
+
+        A small difference is drift and is applied at once. A large one could be
+        a wrong match (a repeated chorus) or the needle being moved, so it is
+        applied only when the next scan agrees with it.
+        """
+        current = self.state.current
+        offset = fresh.get("recognizedOffset")
+        if not current or not isinstance(offset, (int, float)):
+            return
+        when = fresh["recognizedAt"]
+        expected = position_at(current, when)
+        drift = None if expected is None else offset - expected
+        apply = drift is None or abs(drift) <= RESYNC_TOLERANCE_SECONDS
+        if not apply and self.pending_resync:
+            pending_expected = position_at(self.pending_resync, when)
+            apply = abs(offset - pending_expected) <= RESYNC_TOLERANCE_SECONDS
+        if apply:
+            current["recognizedAt"] = when
+            current["recognizedOffset"] = offset
+            self.pending_resync = None
+        else:
+            self.pending_resync = {"recognizedAt": when, "recognizedOffset": offset}
+        log_event(
+            "sync",
+            drift=None if drift is None else round(drift, 2),
+            applied=apply,
+        )
+
     def capture(self, seconds):
         sample_path = ROOT / "captures" / f"dashboard-{int(time.time())}-{seconds}s.wav"
         command = capture_command(self.args, sample_path, seconds)
         log_event("capture", action="start", seconds=seconds, path=str(sample_path.relative_to(ROOT)))
         with self.audio_lock:
             result = run_command(command, timeout=seconds + 20)
+        # The recorder exits as soon as the sample is complete, so the sample
+        # began `seconds` before now. (Its start-up time varies, so timing
+        # from the launch would be less accurate.)
+        sample_start = datetime.fromtimestamp(time.time() - seconds, timezone.utc).isoformat()
         if result.returncode != 0:
             log_event("capture", action="failed", code=result.returncode)
             raise RuntimeError(result.stderr.strip() or result.stdout.strip())
@@ -810,9 +859,9 @@ class NowPlayingService:
             rms=levels.get("rmsDb"),
             peak=levels.get("peakDb"),
         )
-        return sample_path, levels
+        return sample_path, levels, sample_start
 
-    def identify(self, sample_path):
+    def identify(self, sample_path, sample_start):
         command = [sys.executable, "tools/identify_shazam.py", str(sample_path), "--json"]
         log_event("shazam", action="start", sample=str(sample_path.relative_to(ROOT)))
         result = run_command(command, timeout=45, low_priority=True)
@@ -821,6 +870,9 @@ class NowPlayingService:
             raise RuntimeError(result.stderr.strip() or result.stdout.strip())
         track = track_from_shazam(json.loads(result.stdout))
         if track:
+            # Time the song from when the sample began, not from when the
+            # answer came back.
+            track["recognizedAt"] = sample_start
             log_event("shazam", action="matched", artist=track.get("artist"), title=track.get("title"))
             track["songInfo"] = lookup_song_info(track)
             try:
@@ -863,9 +915,9 @@ class NowPlayingService:
                 nextScanAt=None,
             )
 
-            sample_path, levels = self.capture(self.args.primary_seconds)
+            sample_path, levels, sample_start = self.capture(self.args.primary_seconds)
             self.update(status="identifying", message="Identifying the sample")
-            track = self.identify(sample_path)
+            track = self.identify(sample_path, sample_start)
             used_seconds = self.args.primary_seconds
 
             if not track and self.args.fallback_seconds > self.args.primary_seconds:
@@ -873,9 +925,9 @@ class NowPlayingService:
                     status="listening",
                     message=f"No match yet, trying a {self.args.fallback_seconds} second fallback",
                 )
-                sample_path, levels = self.capture(self.args.fallback_seconds)
+                sample_path, levels, sample_start = self.capture(self.args.fallback_seconds)
                 self.update(status="identifying", message="Identifying the fallback sample")
-                track = self.identify(sample_path)
+                track = self.identify(sample_path, sample_start)
                 used_seconds = self.args.fallback_seconds
 
             scan = {
@@ -916,6 +968,9 @@ class NowPlayingService:
                         self.state.history.append(track)
                         self.state.lyricOffsetSeconds = self.state.config["defaultLyricOffsetSeconds"]
                         self.state.lyricScroll = 0
+                        self.pending_resync = None
+                    else:
+                        self.resync_locked(track)
                     self.state.status = "matched"
                     self.state.message = "Updated now playing" if changed else "Same track still playing"
                     log_event(
@@ -1084,7 +1139,10 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         if parsed.path == "/api/state":
-            self.send_json(self.service.snapshot())
+            payload = self.service.snapshot()
+            # Lets a screen work out timing without trusting its own clock.
+            payload["serverTime"] = utc_now()
+            self.send_json(payload)
             return
         if parsed.path == "/api/level":
             self.send_json(self.service.level_snapshot())
@@ -1099,6 +1157,18 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed = urlparse(self.path)
+        if parsed.path == "/api/screen":
+            # A display reporting its measured size, for diagnosing TV browsers.
+            length = min(int(self.headers.get("Content-Length", 0) or 0), 2000)
+            try:
+                info = json.loads(self.rfile.read(length) or b"{}")
+            except ValueError:
+                info = {}
+            if isinstance(info, dict):
+                fields = {k: str(info.get(k))[:300] for k in ("layout", "window", "screen", "pixelRatio", "autoDark", "prefersDark", "userAgent")}
+                log_event("screen", client=self.client_address[0], **fields)
+            self.send_json({"ok": True})
+            return
         if parsed.path == "/api/scan":
             self.service.request_scan()
             self.send_json({"ok": True})
@@ -1171,7 +1241,7 @@ def main():
     parser.add_argument("--silence-hold-seconds", type=float, default=2.0)
     parser.add_argument("--manual-clear-silence-seconds", type=float, default=75.0)
     parser.add_argument("--now-playing-clear-silence-seconds", type=float, default=120.0)
-    parser.add_argument("--lyric-default-offset", type=float, default=11.0)
+    parser.add_argument("--lyric-default-offset", type=float, default=0.0)
     args = parser.parse_args()
     args.resolved_audio_backend = resolve_audio_backend(args)
 

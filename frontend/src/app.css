@@ -1,3 +1,8 @@
+:root {
+  /* The themes set every colour themselves; the browser must not darken them. */
+  color-scheme: only light;
+}
+
 html,
 body {
   margin: 0;
