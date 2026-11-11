@@ -26,7 +26,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 DIST_ROOT = WEB_ROOT / "dist"
-DISPLAY_THEMES = ("mcm", "mcm-night", "sleeve")
+DISPLAY_THEMES = ("mcm", "mcm-night", "sunset", "sleeve")
 # A repeat match further than this from the expected position needs a second
 # scan to confirm it before the lyric timing is moved.
 RESYNC_TOLERANCE_SECONDS = 3.0
