@@ -7,12 +7,13 @@ import subprocess
 import sys
 import threading
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import Request, urlopen
 
 from dotenv import load_dotenv
@@ -70,11 +71,27 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
+# Recent log lines, kept in memory for the console on the control page.
+LOG_LINES = deque(maxlen=500)
+LOG_LOCK = threading.Lock()
+# Anything that looks like an API key is hidden before a line is kept or printed.
+SECRET_RE = re.compile(r"(key=|api[_-]?key\W{1,3})[A-Za-z0-9_\-]{8,}", re.IGNORECASE)
+
+
 def log_event(event, **fields):
     timestamp = datetime.now().strftime("%H:%M:%S")
     details = " ".join(f"{key}={value}" for key, value in fields.items() if value is not None)
+    details = SECRET_RE.sub(r"\1[hidden]", details)
     suffix = f" {details}" if details else ""
+    with LOG_LOCK:
+        seq = LOG_LINES[-1]["seq"] + 1 if LOG_LINES else 1
+        LOG_LINES.append({"seq": seq, "time": timestamp, "event": event, "text": details})
     print(f"[{timestamp}] [{event}]{suffix}", flush=True)
+
+
+def log_lines_after(seq):
+    with LOG_LOCK:
+        return [line for line in LOG_LINES if line["seq"] > seq]
 
 
 def resolve_audio_backend(args):
@@ -1144,6 +1161,16 @@ class Handler(SimpleHTTPRequestHandler):
             payload["serverTime"] = utc_now()
             self.send_json(payload)
             return
+        if parsed.path == "/api/logs":
+            # New log lines since the one numbered `after`, for the control page console.
+            try:
+                after = int(parse_qs(parsed.query).get("after", ["0"])[0])
+            except ValueError:
+                after = 0
+            with LOG_LOCK:
+                last = LOG_LINES[-1]["seq"] if LOG_LINES else 0
+            self.send_json({"lines": log_lines_after(after), "last": last})
+            return
         if parsed.path == "/api/level":
             self.send_json(self.service.level_snapshot())
             return
@@ -1216,7 +1243,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_json({"error": "not found"}, status=404)
 
     def log_message(self, format, *args):
-        if self.path.startswith(("/api/level", "/api/stream")):
+        if self.path.startswith(("/api/level", "/api/stream", "/api/logs")):
             return
         print(f"[http] {self.address_string()} {format % args}")
 

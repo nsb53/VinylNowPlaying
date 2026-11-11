@@ -1,0 +1,338 @@
+/* Phone control page. Colours follow the Mid-Century TV theme. */
+:root {
+  --bg: #efe3c8;
+  --card: #fbf3df;
+  --ink: #23201c;
+  --muted: #5c554a;
+  --line: #d6c7a4;
+  --teal: #1f5f63;
+  --mustard: #d9a21b;
+  --rust: #b5431f;
+  --button: #efe3c8;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1917;
+    --card: #2a2623;
+    --ink: #efe3c8;
+    --muted: #b8ad96;
+    --line: #453f39;
+    --teal: #3d9197;
+    --button: #3a3531;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+main {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+dl,
+dd {
+  margin: 0;
+}
+
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+h1 {
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
+}
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.version {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Now playing */
+.now {
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--mustard);
+  color: #23201c;
+}
+.now h2 {
+  margin-top: 6px;
+  font-size: 28px;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.artist {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 500;
+}
+.facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 2px solid rgba(35, 32, 28, 0.25);
+}
+.facts dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.facts dd {
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cards */
+.card {
+  margin-top: 14px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: var(--card);
+}
+h3 {
+  font-size: 18px;
+}
+h4 {
+  font-size: 14px;
+  color: var(--muted);
+}
+.card h3 + .segmented,
+.card h4 + .segmented {
+  margin-top: 12px;
+}
+.card .segmented + h4 {
+  margin-top: 16px;
+}
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.card-head.sub {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.readout {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.readout small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.hint {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Buttons */
+button,
+.tv-link {
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--button);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+button:active {
+  opacity: 0.7;
+}
+button:disabled {
+  opacity: 0.5;
+}
+button:focus-visible,
+.tv-link:focus-visible,
+summary:focus-visible,
+.console:focus-visible {
+  outline: 3px solid var(--teal);
+  outline-offset: 2px;
+}
+.primary {
+  width: 100%;
+  margin-top: 16px;
+  background: #23201c;
+  color: #fbf3df;
+}
+.quiet {
+  width: 100%;
+  margin-top: 10px;
+  background: none;
+  border: 1px solid var(--line);
+}
+.quiet.small {
+  width: auto;
+  min-height: 34px;
+  margin: 0 0 0 8px;
+  font-size: 14px;
+}
+.quiet[aria-pressed='true'] {
+  background: var(--rust);
+  border-color: var(--rust);
+  color: #fbf3df;
+}
+.row {
+  display: flex;
+  margin: 12px -5px 0;
+}
+.row button {
+  flex: 1 1 0;
+  margin: 0 5px;
+}
+.segmented {
+  display: flex;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--button);
+}
+.segmented button {
+  flex: 1 1 0;
+  min-height: 42px;
+  padding: 0 6px;
+  background: none;
+  font-size: 15px;
+}
+.segmented button.active {
+  background: var(--teal);
+  color: #fbf3df;
+}
+
+/* Collapsible cards */
+summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 6px;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary .hint {
+  margin: 0 0 0 12px;
+  text-align: right;
+}
+summary h3::after {
+  content: ' +';
+  color: var(--muted);
+}
+details[open] summary h3::after {
+  content: ' –';
+}
+details[open] summary {
+  margin-bottom: 12px;
+}
+
+/* Manual override form */
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-gap: 10px;
+  margin-top: 12px;
+}
+.fields .wide {
+  grid-column: 1 / -1;
+}
+.fields span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+input,
+textarea,
+select {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--ink);
+  font: inherit;
+}
+
+/* Console */
+.console-tools {
+  display: flex;
+}
+.console {
+  height: 300px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: #15120f;
+  color: #e9dfc8;
+  font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+  -webkit-overflow-scrolling: touch;
+}
+.console .time {
+  color: #8f8675;
+}
+.console .tag {
+  color: #e8b62e;
+  font-weight: 700;
+}
+.console .bad .tag,
+.console .bad .text {
+  color: #ff8a65;
+}
+.console .good .tag {
+  color: #7fd0a8;
+}
+.console .empty {
+  color: #8f8675;
+}
+
+.tv-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  background: none;
+  border: 1px solid var(--line);
+  text-decoration: none;
+}
