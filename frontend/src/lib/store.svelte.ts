@@ -82,10 +82,21 @@ function applyState(data: any) {
   if (Number.isFinite(silence)) vu.silence = silence;
 }
 
+/** Server clock minus this screen's clock, in ms. TV clocks are often wrong. */
+let clockSkew = 0;
+
 async function refreshState() {
   try {
+    const sent = Date.now();
     const response = await fetch('/api/state', { cache: 'no-store' });
-    applyState(await response.json());
+    const data = await response.json();
+    const received = Date.now();
+    const serverTime = new Date(data.serverTime).getTime();
+    // Skip slow round trips: the estimate is only as good as the delay is short.
+    if (Number.isFinite(serverTime) && received - sent < 500) {
+      clockSkew = serverTime - (sent + received) / 2;
+    }
+    applyState(data);
   } catch {
     app.message = 'Reconnecting';
   }
@@ -233,7 +244,7 @@ function syncedLines(track: Track) {
 
 function playbackPosition(track: Track) {
   if (!track.recognizedAt || !Number.isFinite(track.recognizedOffset)) return null;
-  const elapsed = (app.now - new Date(track.recognizedAt).getTime()) / 1000;
+  const elapsed = (app.now + clockSkew - new Date(track.recognizedAt).getTime()) / 1000;
   return (track.recognizedOffset as number) + elapsed + app.lyricOffset;
 }
 
