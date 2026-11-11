@@ -190,8 +190,9 @@
 
   .meters {
     flex: none;
-    width: 520px;
-    padding: 48px 72px;
+    /* Wider than the 500px cover above it, so the block steps out to the right. */
+    width: 580px;
+    padding: 48px 102px;
     background: #1f5f63;
   }
   .face {

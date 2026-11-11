@@ -3,8 +3,8 @@
 
 import { vu } from './vu';
 
-export type Theme = 'mcm' | 'mcm-night' | 'sleeve';
-const THEMES: Theme[] = ['mcm', 'mcm-night', 'sleeve'];
+export type Theme = 'mcm' | 'mcm-night' | 'sunset' | 'sleeve';
+const THEMES: Theme[] = ['mcm', 'mcm-night', 'sunset', 'sleeve'];
 
 type TriviaItem = {
   question?: string;

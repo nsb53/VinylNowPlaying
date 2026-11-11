@@ -1,5 +1,5 @@
 <script lang="ts">
-  // B2 "Sleeve Split": dark, cover and meters on the left, lyrics and trivia on the right.
+  // "Modern" (theme id `sleeve`): dark, cover and meters on the left, lyrics and trivia on the right.
   import Cover from '../lib/Cover.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
   import { fit } from '../lib/fit';

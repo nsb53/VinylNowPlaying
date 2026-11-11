@@ -231,6 +231,12 @@ summary:focus-visible,
   background: none;
   font-size: 15px;
 }
+.segmented.grid {
+  flex-wrap: wrap;
+}
+.segmented.grid button {
+  flex: 1 1 50%;
+}
 .segmented button.active {
   background: var(--teal);
   color: #fbf3df;
