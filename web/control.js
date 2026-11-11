@@ -35,6 +35,11 @@ function timeAgo(value) {
   return `${Math.round(seconds / 60)}m ago`;
 }
 
+function signedSeconds(value) {
+  const seconds = Number(value || 0);
+  return `${seconds > 0 ? "+" : ""}${seconds.toFixed(1)}s`;
+}
+
 function timeUntil(value) {
   if (!value) return "-";
   const seconds = Math.round((new Date(value).getTime() - Date.now()) / 1000);
@@ -111,9 +116,9 @@ async function refreshControl() {
   nextEl.textContent = timeUntil(state.nextScanAt);
   lastEl.textContent = state.lastScan ? timeAgo(state.lastScan.finishedAt) : "-";
   levelEl.textContent = state.level?.peakDb ? `${state.level.peakDb.toFixed(1)} dBFS` : "-";
-  lyricsEl.textContent = track?.lyrics?.plain ? "Found" : "No match";
-  lyricOffsetEl.textContent = `${Number(state.lyricOffsetSeconds || 0).toFixed(1)}s`;
-  defaultOffsetEl.textContent = `${Number(state.config?.defaultLyricOffsetSeconds || 0).toFixed(1)}s`;
+  lyricsEl.textContent = !track ? "-" : track.lyrics?.synced ? "Timed" : track.lyrics?.plain ? "Untimed" : "None";
+  lyricOffsetEl.textContent = signedSeconds(state.lyricOffsetSeconds);
+  defaultOffsetEl.textContent = signedSeconds(state.config?.defaultLyricOffsetSeconds);
   lyricScrollEl.textContent = `${state.lyricScroll || 0}`;
   meterModeButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.meterMode === (state.config?.meterDisplayMode || "vu"));
@@ -231,6 +236,83 @@ manualUseEl.addEventListener("click", () => {
 manualPrevEl.addEventListener("click", () => manualControl({ action: "previous" }));
 manualNextEl.addEventListener("click", () => manualControl({ action: "next" }));
 manualClearEl.addEventListener("click", () => manualControl({ action: "clear" }));
+
+// ---- Console: a live view of the server's log ----
+const consoleEl = document.querySelector("#console");
+const consolePauseEl = document.querySelector("#consolePause");
+const consoleClearEl = document.querySelector("#consoleClear");
+const CONSOLE_MAX_LINES = 400;
+let lastLogSeq = 0;
+let consolePaused = false;
+
+function logLineClass(line) {
+  if (/error|failed/i.test(line.event + " " + line.text)) return "bad";
+  if (/result=matched|action=matched/.test(line.text)) return "good";
+  return "";
+}
+
+function appendLogLines(lines) {
+  // Follow new lines only while the reader is already at the bottom.
+  const atBottom = consoleEl.scrollHeight - consoleEl.scrollTop - consoleEl.clientHeight < 40;
+  consoleEl.querySelector(".empty")?.remove();
+  lines.forEach((line) => {
+    const row = document.createElement("div");
+    row.className = logLineClass(line);
+    const time = document.createElement("span");
+    time.className = "time";
+    time.textContent = `${line.time} `;
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = `${line.event} `;
+    const text = document.createElement("span");
+    text.className = "text";
+    text.textContent = line.text;
+    row.append(time, tag, text);
+    consoleEl.append(row);
+  });
+  while (consoleEl.childElementCount > CONSOLE_MAX_LINES) consoleEl.firstElementChild.remove();
+  if (atBottom) consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function showConsoleNote(message) {
+  consoleEl.replaceChildren();
+  const note = document.createElement("div");
+  note.className = "empty";
+  note.textContent = message;
+  consoleEl.append(note);
+}
+
+async function refreshConsole() {
+  if (consolePaused) return;
+  try {
+    const response = await fetch(`/api/logs?after=${lastLogSeq}`, { cache: "no-store" });
+    const { lines, last } = await response.json();
+    if (last < lastLogSeq) {
+      // The server restarted and numbers its lines from 1 again.
+      lastLogSeq = 0;
+      return;
+    }
+    if (!lines.length) return;
+    lastLogSeq = lines[lines.length - 1].seq;
+    appendLogLines(lines);
+  } catch {
+    // The server is restarting or unreachable; the next poll tries again.
+    lastLogSeq = 0;
+  }
+}
+
+consolePauseEl.addEventListener("click", () => {
+  consolePaused = !consolePaused;
+  consolePauseEl.textContent = consolePaused ? "Resume" : "Pause";
+  consolePauseEl.setAttribute("aria-pressed", String(consolePaused));
+  if (!consolePaused) refreshConsole();
+});
+
+consoleClearEl.addEventListener("click", () => showConsoleNote("Cleared. New activity appears here."));
+
+showConsoleNote("Waiting for activity...");
+refreshConsole();
+setInterval(refreshConsole, 1000);
 
 syncManualSelectFromTextarea();
 refreshControl();
