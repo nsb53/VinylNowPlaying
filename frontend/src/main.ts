@@ -11,6 +11,16 @@ import '@fontsource/outfit/400.css';
 import '@fontsource/outfit/500.css';
 import '@fontsource/outfit/600.css';
 import '@fontsource/righteous/400.css';
+import '@fontsource/fredoka/400.css';
+import '@fontsource/fredoka/500.css';
+import '@fontsource/fredoka/600.css';
+import '@fontsource/fredoka/700.css';
+import '@fontsource/special-elite/400.css';
+import '@fontsource/rubik-dirt/400.css';
+import '@fontsource/permanent-marker/400.css';
+import '@fontsource/rubik-wet-paint/400.css';
+import '@fontsource/saira-stencil-one/400.css';
+import '@fontsource/sedgwick-ave-display/400.css';
 import './app.css';
 import App from './App.svelte';
 

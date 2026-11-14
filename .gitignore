@@ -9,3 +9,4 @@ captures/
 !.env.example
 frontend/node_modules/
 .DS_Store
+pi.env

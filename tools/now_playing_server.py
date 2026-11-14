@@ -26,14 +26,18 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 DIST_ROOT = WEB_ROOT / "dist"
-DISPLAY_THEMES = ("mcm", "mcm-night", "sunset", "sleeve")
+DISPLAY_THEMES = ("mcm", "mcm-night", "sunset", "pop", "grunge", "graffiti", "sleeve")
 # A repeat match further than this from the expected position needs a second
 # scan to confirm it before the lyric timing is moved.
 RESYNC_TOLERANCE_SECONDS = 3.0
+# A live input always carries some noise; exact digital zero means the adapter
+# stopped sending audio (sleep, replug). Reopen the meter after this long.
+DEAD_INPUT_DB = -119.0
+DEAD_INPUT_SECONDS = 10.0
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
 APP_VERSION = "0.8.3"
-SONG_INFO_SCHEMA_VERSION = 11
+SONG_INFO_SCHEMA_VERSION = 12  # 12: facts replace trivia questions
 USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 
 load_dotenv(ROOT / ".env")
@@ -256,7 +260,7 @@ def fallback_song_info(track, source="Shazam", reason=""):
         "originalReleaseDate": track.get("released", ""),
         "writtenBy": [],
         "genre": track.get("genre", ""),
-        "trivia": [],
+        "facts": [],
         "schemaVersion": SONG_INFO_SCHEMA_VERSION,
         "foundAt": utc_now(),
     }
@@ -265,26 +269,31 @@ def fallback_song_info(track, source="Shazam", reason=""):
     return info
 
 
-PRIOR_QUESTIONS_LIMIT = 30
+PRIOR_FACTS_LIMIT = 30
+# After a failed Gemini lookup, wait this long before asking again for that song.
+GEMINI_RETRY_SECONDS = 300
+gemini_paused_until = 0.0  # set when Google says a usage limit was reached
+gemini_retry_at = {}  # song key -> time it may be asked again
 
 
-def prior_questions_for_artist(cache, track, limit=PRIOR_QUESTIONS_LIMIT):
+def prior_facts_for_artist(cache, track, limit=PRIOR_FACTS_LIMIT):
     artist_key = normalize_text(track.get("artist") or "")
     own_key = metadata_cache_key(track)
     if not artist_key:
         return []
-    questions = []
+    facts = []
     for cache_key, entry in cache.items():
         if cache_key == own_key or not cache_key.startswith(artist_key + "::"):
             continue
-        for item in entry.get("trivia") or []:
-            question = (item.get("question") or "").strip()
-            if question:
-                questions.append(question)
-    return questions[-limit:]
+        for item in entry.get("facts") or []:
+            text = (item.get("text") or "").strip()
+            if text:
+                facts.append(text)
+    return facts[-limit:]
 
 
 def lookup_song_info(track):
+    global gemini_paused_until
     cache = load_metadata_cache()
     key = metadata_cache_key(track)
     cached = cache.get(key)
@@ -295,10 +304,27 @@ def lookup_song_info(track):
         log_event("metadata", result="skipped", reason="no_gemini_api_key")
         return fallback_song_info(track, reason="no_api_key")
 
-    avoid_questions = prior_questions_for_artist(cache, track)
-    enriched = gemini_metadata.lookup(track, logger=log_event, avoid_questions=avoid_questions)
+    # Every scan re-checks the song, so without these a failing lookup would be
+    # retried every 25 seconds, using up the daily allowance.
+    now = time.time()
+    if now < gemini_paused_until:
+        return fallback_song_info(track, reason="gemini_limit")
+    if now < gemini_retry_at.get(key, 0):
+        return fallback_song_info(track, reason="gemini_retry_wait")
+
+    avoid_facts = prior_facts_for_artist(cache, track)
+    try:
+        enriched = gemini_metadata.lookup(track, logger=log_event, avoid_facts=avoid_facts)
+    except gemini_metadata.RateLimited as limit:
+        gemini_paused_until = time.time() + limit.retry_after
+        resume = datetime.fromtimestamp(gemini_paused_until).strftime("%H:%M")
+        log_event("metadata", result="paused", reason="daily_limit" if limit.daily else "rate_limit", until=resume)
+        return fallback_song_info(track, reason="gemini_limit")
     if not enriched:
+        gemini_retry_at[key] = time.time() + GEMINI_RETRY_SECONDS
+        log_event("metadata", result="failed", retry_in_seconds=GEMINI_RETRY_SECONDS)
         return fallback_song_info(track, reason="gemini_failed")
+    gemini_retry_at.pop(key, None)
 
     info = {
         "source": "Gemini",
@@ -307,7 +333,7 @@ def lookup_song_info(track):
         "originalReleaseDate": enriched.get("originalReleaseDate") or track.get("released", ""),
         "writtenBy": enriched.get("writtenBy") or [],
         "genre": enriched.get("genre") or track.get("genre", ""),
-        "trivia": enriched.get("trivia") or [],
+        "facts": enriched.get("facts") or [],
         "schemaVersion": SONG_INFO_SCHEMA_VERSION,
         "foundAt": utc_now(),
     }
@@ -317,9 +343,9 @@ def lookup_song_info(track):
         "metadata",
         result="matched",
         source="Gemini",
-        trivia_count=len(info["trivia"]),
+        facts=len(info["facts"]),
         writers=len(info["writtenBy"]),
-        avoid_count=len(avoid_questions),
+        avoid_count=len(avoid_facts),
     )
     return info
 
@@ -1051,6 +1077,7 @@ class NowPlayingService:
                 self.scan_requested.clear()
 
     def level_loop(self):
+        input_missing = False
         while not self.stop_requested.is_set():
             command = meter_command(self.args)
             try:
@@ -1064,6 +1091,8 @@ class NowPlayingService:
                         bufsize=1,
                     )
 
+                dead_since = None
+                got_level = False
                 for line in self.level_process.stdout:
                     if self.stop_requested.is_set():
                         break
@@ -1071,10 +1100,34 @@ class NowPlayingService:
                         levels = json.loads(line)
                     except json.JSONDecodeError:
                         continue
+                    if not got_level:
+                        got_level = True
+                        if input_missing:
+                            input_missing = False
+                            log_event("audio", action="input_found", device=audio_device(self.args))
+                            self.update(error=None)
+                    peak = levels.get("peakDb")
+                    if isinstance(peak, (int, float)) and peak <= DEAD_INPUT_DB:
+                        dead_since = dead_since or time.time()
+                        if time.time() - dead_since >= DEAD_INPUT_SECONDS:
+                            log_event("audio", action="input_dead", device=audio_device(self.args), reopening=True)
+                            break
+                    else:
+                        dead_since = None
                     levels["updatedAt"] = utc_now()
                     self.update_music_activity(levels)
                     self.update(level=levels)
+                if dead_since is not None and self.level_process.poll() is None:
+                    self.level_process.terminate()
+                    self.stop_requested.wait(2)
                 self.level_process.wait(timeout=2)
+                if not got_level and not self.stop_requested.is_set():
+                    # The meter could not open the input (unplugged); say so once, then keep retrying.
+                    if not input_missing:
+                        input_missing = True
+                        log_event("audio", action="input_missing", device=audio_device(self.args), retrying=True)
+                        self.update(error=f"Audio input '{audio_device(self.args)}' not found")
+                    self.stop_requested.wait(3)
             except Exception as exc:
                 self.update(error=f"VU meter failed: {exc}")
                 self.stop_requested.wait(2)
@@ -1108,6 +1161,14 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/control":
             return str(WEB_ROOT / "control.html")
         return str(WEB_ROOT / parsed.path.lstrip("/"))
+
+    def end_headers(self):
+        # Pages must be re-checked on every load so a TV picks up a new build;
+        # the built script and style files have a new name each time.
+        path = urlparse(self.path).path
+        if path in ("/", "/classic", "/control") or path.endswith(".html"):
+            self.send_header("Cache-Control", "no-cache")
+        super().end_headers()
 
     def send_json(self, payload, status=200):
         body = json.dumps(payload).encode("utf-8")
