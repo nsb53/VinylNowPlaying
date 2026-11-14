@@ -4,10 +4,18 @@
   import MidCentury from './themes/MidCentury.svelte';
   import Sleeve from './themes/Sleeve.svelte';
   import Sunset from './themes/Sunset.svelte';
+  import Pop from './themes/Pop.svelte';
+  import Grunge from './themes/Grunge.svelte';
+  import Graffiti from './themes/Graffiti.svelte';
 
   // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
   // so the layout is identical on every 16:9 TV.
-  const PAGE_BG = { mcm: '#EFE3C8', 'mcm-night': '#1C1917', sunset: '#2A1710', sleeve: '#0E0E10' };
+  const PAGE_BG = { mcm: '#EFE3C8', 'mcm-night': '#1C1917', sunset: '#2A1710',
+    pop: '#2B1E52',
+    grunge: '#151612',
+    graffiti: '#0E0E10',
+    sleeve: '#0E0E10',
+  };
   let frame: HTMLDivElement;
   let scaleX = $state(1);
   let scaleY = $state(1);
@@ -82,6 +90,12 @@
       <Sleeve />
     {:else if app.theme === 'sunset'}
       <Sunset />
+    {:else if app.theme === 'pop'}
+      <Pop />
+    {:else if app.theme === 'grunge'}
+      <Grunge />
+    {:else if app.theme === 'graffiti'}
+      <Graffiti />
     {:else}
       <MidCentury night={app.theme === 'mcm-night'} />
     {/if}

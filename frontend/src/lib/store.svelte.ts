@@ -1,18 +1,12 @@
-// Everything the themes show: track, lyrics, trivia, cover and the chosen theme.
+// Everything the themes show: track, lyrics, facts, cover and the chosen theme.
 // Themes only read from here, so a new theme is a layout file and nothing else.
 
 import { vu } from './vu';
 
-export type Theme = 'mcm' | 'mcm-night' | 'sunset' | 'sleeve';
-const THEMES: Theme[] = ['mcm', 'mcm-night', 'sunset', 'sleeve'];
+export type Theme = 'mcm' | 'mcm-night' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve';
+const THEMES: Theme[] = ['mcm', 'mcm-night', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve'];
 
-type TriviaItem = {
-  question?: string;
-  topic?: string;
-  choices?: string[];
-  correctIndex?: number;
-  answer?: string;
-};
+type Fact = { category?: string; text?: string };
 
 type Track = {
   id?: string;
@@ -32,14 +26,13 @@ type Track = {
     originalReleaseDate?: string;
     genre?: string;
     writtenBy?: string[];
-    trivia?: TriviaItem[];
+    facts?: Fact[];
   };
 };
 
 const STATE_POLL_MS = 3000;
 const TICK_MS = 250;
-const TRIVIA_QUESTION_MS = 20000;
-const TRIVIA_ANSWER_MS = 10000;
+const FACT_MS = 15000;
 const ART_ROTATE_MS = 8000;
 
 // ?theme=sleeve in the address pins a theme for that screen (useful for previews).
@@ -55,7 +48,7 @@ export const app = $state({
   lyricScroll: 0,
   now: Date.now(),
   trackSince: Date.now(),
-  trivia: { index: 0, revealed: false, since: Date.now() },
+  fact: { index: 0, since: Date.now() },
 });
 
 let trackId: string | null = null;
@@ -70,7 +63,7 @@ function applyState(data: any) {
   if (id !== trackId) {
     trackId = id;
     app.trackSince = Date.now();
-    app.trivia = { index: 0, revealed: false, since: Date.now() };
+    app.fact = { index: 0, since: Date.now() };
   }
   app.track = track;
   app.message = data.message || data.status || 'Listening';
@@ -110,14 +103,13 @@ function pushLevel(level: any) {
 
 function tick() {
   app.now = Date.now();
-  const items = app.track?.songInfo?.trivia ?? [];
+  const items = app.track?.songInfo?.facts ?? [];
   if (!items.length) return;
-  const trivia = app.trivia;
-  if (trivia.index >= items.length) trivia.index = 0;
-  if (app.now - trivia.since < (trivia.revealed ? TRIVIA_ANSWER_MS : TRIVIA_QUESTION_MS)) return;
-  if (trivia.revealed) trivia.index = (trivia.index + 1) % items.length;
-  trivia.revealed = !trivia.revealed;
-  trivia.since = app.now;
+  const fact = app.fact;
+  if (fact.index >= items.length) fact.index = 0;
+  if (app.now - fact.since < FACT_MS) return;
+  fact.index = (fact.index + 1) % items.length;
+  fact.since = app.now;
 }
 
 /** Starts polling and the live level stream. Returns a stop function. */
@@ -202,21 +194,16 @@ export function coverView() {
   };
 }
 
-export function triviaView() {
-  const items = app.track?.songInfo?.trivia ?? [];
-  const item = items[app.trivia.index];
+/** The "Did you know" card: one fact at a time, rotating. Null when there are none. */
+export function factView() {
+  const items = (app.track?.songInfo?.facts ?? []).filter((item) => item.text);
+  const item = items[app.fact.index] ?? items[0];
   if (!item) return null;
   return {
-    topic: (item.topic || 'trivia').toUpperCase(),
-    question: item.question || '',
-    choices: (item.choices ?? []).map((text, index) => ({
-      letter: 'ABCD'[index] || '',
-      text,
-      correct: index === item.correctIndex,
-    })),
-    answer: item.answer || '',
-    revealed: app.trivia.revealed,
-    counter: `${app.trivia.index + 1} / ${items.length}`,
+    category: (item.category || 'Did you know').toUpperCase(),
+    text: item.text || '',
+    counter: items.length > 1 ? `${Math.min(app.fact.index, items.length - 1) + 1} / ${items.length}` : '',
+    index: app.fact.index,
   };
 }
 

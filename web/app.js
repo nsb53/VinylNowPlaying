@@ -173,7 +173,10 @@ function resetTrivia(trackId, items) {
 }
 
 function renderTrivia(track) {
-  const items = track?.songInfo?.trivia || [];
+  // Facts reuse the old trivia panel: the fact goes where the question was.
+  const items = (track?.songInfo?.facts || [])
+    .filter((fact) => fact && fact.text)
+    .map((fact) => ({ question: fact.text, topic: fact.category || "", choices: [], answer: "" }));
   const trackId = track?.id || null;
   if (trackId !== triviaState.trackId) {
     resetTrivia(trackId, items);
@@ -199,7 +202,7 @@ function paintTrivia() {
   const needsChoicesRebuild = triviaState.rendered.itemKey !== itemKey;
   if (needsChoicesRebuild) {
     els.triviaQuestion.textContent = item.question || "";
-    els.triviaTopic.textContent = item.topic ? item.topic[0].toUpperCase() + item.topic.slice(1) : "";
+    els.triviaTopic.textContent = item.topic || "";
     els.triviaAnswer.textContent = item.answer || "";
     els.triviaChoices.replaceChildren();
     (item.choices || []).forEach((choice, idx) => {

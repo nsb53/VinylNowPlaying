@@ -1,12 +1,12 @@
-"""Gemini-based song metadata + trivia lookup.
+"""Gemini-based song metadata + "Did you know" facts.
 
-Returns a dict shaped to slot into the dashboard's existing song_info field:
+Returns a dict shaped to slot into the dashboard's song_info field:
     {
       "originalRelease": str,
       "originalReleaseDate": str,
       "writtenBy": [str, ...],
       "genre": str,
-      "trivia": [{"question": str, "answer": str}, ...],
+      "facts": [{"category": str, "text": str}, ...],
     }
 
 The caller is responsible for adding source/confidence/schema/foundAt wrappers
@@ -23,8 +23,26 @@ GEMINI_ENDPOINT = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     f"{GEMINI_MODEL}:generateContent"
 )
-TRIVIA_COUNT = 6
-REQUEST_TIMEOUT = 20
+FACT_COUNT = 6
+REQUEST_TIMEOUT = 45  # answers often take 10-20 s; giving up early wastes a request
+FACT_CATEGORIES = [
+    "Behind the song",
+    "The band",
+    "In the studio",
+    "Charts & records",
+    "Where you've heard it",
+    "Connections",
+]
+
+
+class RateLimited(Exception):
+    """Gemini refused the request for quota reasons. retry_after is in seconds."""
+
+    def __init__(self, retry_after, daily):
+        super().__init__(f"rate limited, retry after {retry_after}s")
+        self.retry_after = retry_after
+        self.daily = daily
+
 
 RESPONSE_SCHEMA = {
     "type": "object",
@@ -46,42 +64,23 @@ RESPONSE_SCHEMA = {
             "type": "string",
             "description": "Primary genre, e.g. 'Rock', 'Soul'. Empty string if unknown.",
         },
-        "trivia": {
+        "facts": {
             "type": "array",
-            "minItems": 1,
-            "maxItems": TRIVIA_COUNT,
+            "maxItems": FACT_COUNT,
             "items": {
                 "type": "object",
                 "properties": {
-                    "topic": {
+                    "category": {"type": "string", "enum": FACT_CATEGORIES},
+                    "text": {
                         "type": "string",
-                        "enum": ["song", "album", "band"],
-                        "description": "Which subject this question is about.",
-                    },
-                    "question": {"type": "string"},
-                    "choices": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "minItems": 4,
-                        "maxItems": 4,
-                        "description": "Exactly four plausible multiple-choice options.",
-                    },
-                    "correctIndex": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 3,
-                        "description": "Index into 'choices' of the correct answer.",
-                    },
-                    "answer": {
-                        "type": "string",
-                        "description": "One-sentence explanation of why the correct choice is correct.",
+                        "description": "One or two sentences, at most 180 characters.",
                     },
                 },
-                "required": ["topic", "question", "choices", "correctIndex", "answer"],
+                "required": ["category", "text"],
             },
         },
     },
-    "required": ["originalRelease", "originalReleaseDate", "writtenBy", "genre", "trivia"],
+    "required": ["originalRelease", "originalReleaseDate", "writtenBy", "genre", "facts"],
 }
 
 
@@ -89,7 +88,7 @@ def is_configured():
     return bool(os.environ.get("GEMINI_API_KEY", "").strip())
 
 
-def _build_prompt(track, avoid_questions=None):
+def _build_prompt(track, avoid_facts=None):
     artist = (track.get("artist") or "").strip()
     title = (track.get("title") or "").strip()
     album = (track.get("album") or "").strip()
@@ -103,68 +102,57 @@ def _build_prompt(track, avoid_questions=None):
     context = "\n".join(context_lines)
 
     avoid_block = ""
-    avoid_list = [q for q in (avoid_questions or []) if q]
+    avoid_list = [fact for fact in (avoid_facts or []) if fact]
     if avoid_list:
-        bullets = "\n".join(f"- {q}" for q in avoid_list)
+        bullets = "\n".join(f"- {fact}" for fact in avoid_list)
         avoid_block = f"""
-Recently-shown questions for this same artist (DO NOT repeat these or close
-paraphrases of them — pick different angles):
+Facts already shown for this artist on other songs. Do not repeat them or
+reword them; pick different facts:
 
 {bullets}
 """
 
-    return f"""You are a music historian compiling reference info for a vinyl listening
-dashboard. Output JSON matching the provided schema.
+    categories = "\n".join(f"   - {name}" for name in FACT_CATEGORIES)
+    return f"""You are a careful music historian writing "Did you know?" cards for a
+vinyl listening display. Output JSON matching the provided schema.
 
-Accuracy comes first. Every claim must be a real, verifiable fact from
-published sources (interviews, liner notes, band biographies, documentaries).
-If you are not confident a fact is true, exclude the question rather than
-guess. It is better to return 3 solid items than {TRIVIA_COUNT} where one
-is invented. Metadata fields (originalRelease, writtenBy, etc.): return empty
-string or empty array if not confident. Never invent.
+ACCURACY RULES. These matter more than anything else:
+- Only state facts you are certain are true and that are well documented in
+  reliable published sources: interviews, liner notes, official biographies,
+  documentaries, chart archives, major music press.
+- Never make anything up. Do not guess, embellish, or fill gaps with details
+  that merely sound plausible. No invented quotes, numbers, dates, places or
+  people.
+- If you are unsure about any detail of a fact, leave that fact out entirely.
+- If you do not know this song or artist well, return few facts or an empty
+  list. An empty list is a good answer; a wrong fact is a bad one.
+- Do not attribute a fact to this song when it belongs to a different song,
+  album, or artist with a similar name.
+- The same rules apply to originalRelease, originalReleaseDate, writtenBy and
+  genre: use an empty string or empty array rather than guessing.
 
-Trivia rules — return up to {TRIVIA_COUNT} multiple-choice questions:
-
-1. Topic mix: aim for roughly 2 about the song itself, 2 about the album it
-   came from, and 2 about the band/artist's broader career. Use the "topic"
-   field to label each item.
-
-2. Favor interesting angles over generic facts:
-   - For SONG: inspiration behind the lyrics, where/when it was written, what
-     was happening in the writers' lives at the time, recording-room stories,
-     unusual instruments or takes, samples or covers it inspired.
-   - For ALBUM: writing/recording location and circumstances, production
-     quirks, cover art origin, sequencing or naming decisions, near-disasters
-     during the sessions.
-   - For BAND: band-name origin, pre-fame day jobs, unusual gear or recording
-     techniques, side projects, weird fan-culture moments, unexpected
-     collaborations, member quirks. Avoid generic biography ("formed in X,
-     signed to Y").
-
-3. AVOID these boring categories entirely:
-   - Billboard chart positions, weeks at #1, sales figures, RIAA certifications
-   - Grammy/award counts unless tied to a memorable story
-   - "Who wrote it?" when the writer is already given in writtenBy
-
-4. Difficulty: fan-knowledge level. Not obscure deep cuts, not trivia-night
-   finals. Someone who likes the artist should be able to guess most of them.
-
-5. Each item needs exactly 4 plausible choices. Distractors should be
-   believable (same era, same genre, comparable artists or albums) — not
-   obvious filler.
-
-6. "answer" is a one-sentence factual explanation of why the correct choice
-   is right.
+FACT RULES. Return up to {FACT_COUNT} facts:
+1. Each fact is one or two plain sentences, at most 180 characters, readable
+   from across a room. No questions, no exclamation marks, no hype.
+2. Label each with one category:
+{categories}
+3. Prefer a mix of categories, roughly half about the song itself and half
+   about the album or the artist. Skip a category rather than force it.
+4. Favour stories and specifics (how it was written or recorded, the gear or
+   studio, where the name came from, famous uses in films and TV, covers and
+   samples) over generic biography such as "formed in X, signed to Y".
+5. Do not repeat the songwriter credits or release date as a fact on their own.
 {avoid_block}
 {context}
 """
 
 
 def _post_gemini(api_key, payload):
+    # The key goes in a header, not the address, so it never shows up in logs.
     request = Request(
-        f"{GEMINI_ENDPOINT}?key={api_key}",
+        GEMINI_ENDPOINT,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         method="POST",
     )
     with urlopen(request, timeout=REQUEST_TIMEOUT) as response:
@@ -183,37 +171,22 @@ def _extract_json_text(response):
     return None
 
 
-def _coerce_trivia_item(item):
-    question = str(item.get("question", "")).strip()
-    choices = [str(choice).strip() for choice in (item.get("choices") or [])]
-    choices = [choice for choice in choices if choice]
-    answer = str(item.get("answer", "")).strip()
-    topic = str(item.get("topic", "")).strip().lower()
-    if topic not in ("song", "album", "band"):
-        topic = "song"
-    try:
-        correct_index = int(item.get("correctIndex"))
-    except (TypeError, ValueError):
+def _coerce_fact(item):
+    text = " ".join(str(item.get("text", "")).split())
+    category = str(item.get("category", "")).strip()
+    if category not in FACT_CATEGORIES:
+        category = "Did you know"
+    if not text:
         return None
-    if not question or not answer or len(choices) != 4:
-        return None
-    if not 0 <= correct_index < len(choices):
-        return None
-    return {
-        "topic": topic,
-        "question": question,
-        "choices": choices,
-        "correctIndex": correct_index,
-        "answer": answer,
-    }
+    return {"category": category, "text": text}
 
 
 def _coerce(payload):
-    trivia_items = []
-    for item in payload.get("trivia") or []:
-        coerced = _coerce_trivia_item(item)
+    facts = []
+    for item in payload.get("facts") or []:
+        coerced = _coerce_fact(item) if isinstance(item, dict) else None
         if coerced:
-            trivia_items.append(coerced)
+            facts.append(coerced)
     return {
         "originalRelease": (payload.get("originalRelease") or "").strip(),
         "originalReleaseDate": (payload.get("originalReleaseDate") or "").strip(),
@@ -223,32 +196,63 @@ def _coerce(payload):
             if str(name).strip()
         ][:8],
         "genre": (payload.get("genre") or "").strip(),
-        "trivia": trivia_items[:TRIVIA_COUNT],
+        "facts": facts[:FACT_COUNT],
     }
 
 
-def lookup(track, logger=None, avoid_questions=None):
-    """Call Gemini for metadata + trivia. Returns dict or None on failure.
+def _rate_limit_details(exc):
+    """Reads Google's quota error: how long to wait, and whether it is the daily limit."""
+    retry_after, daily = 60, False
+    try:
+        error = json.loads(exc.read().decode("utf-8")).get("error") or {}
+    except (ValueError, OSError, AttributeError):
+        return retry_after, daily
+    for detail in error.get("details") or []:
+        kind = detail.get("@type", "")
+        if kind.endswith("RetryInfo"):
+            delay = str(detail.get("retryDelay", "")).rstrip("s")
+            try:
+                retry_after = max(1, int(float(delay)))
+            except ValueError:
+                pass
+        if kind.endswith("QuotaFailure"):
+            for violation in detail.get("violations") or []:
+                if "PerDay" in violation.get("quotaId", ""):
+                    daily = True
+    return retry_after, daily
 
-    avoid_questions: optional list of previously-shown trivia questions for the
-    same artist; passed to the prompt as a "don't repeat these" hint.
+
+def lookup(track, logger=None, avoid_facts=None):
+    """Call Gemini for metadata + facts. Returns dict or None on failure.
+
+    Raises RateLimited when Google refuses for quota reasons, so the caller can
+    stop asking until the limit resets.
+
+    avoid_facts: facts already shown for other songs by the same artist; passed
+    to the prompt as a "don't repeat these" hint.
     """
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key:
         return None
 
     payload = {
-        "contents": [{"parts": [{"text": _build_prompt(track, avoid_questions=avoid_questions)}]}],
+        "contents": [{"parts": [{"text": _build_prompt(track, avoid_facts=avoid_facts)}]}],
         "generationConfig": {
             "responseMimeType": "application/json",
             "responseSchema": RESPONSE_SCHEMA,
-            "temperature": 0.8,
+            # Low temperature: stick to what it knows rather than get creative.
+            "temperature": 0.3,
         },
     }
 
     try:
         response = _post_gemini(api_key, payload)
     except HTTPError as exc:
+        if exc.code == 429:
+            retry_after, daily = _rate_limit_details(exc)
+            if logger:
+                logger("gemini", result="rate_limited", daily=daily, retry_after_seconds=retry_after)
+            raise RateLimited(retry_after, daily) from None
         if logger:
             logger("gemini", result="http_error", status=exc.code)
         return None

@@ -3,14 +3,14 @@
   import Cover from '../lib/Cover.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
   import { fit } from '../lib/fit';
-  import { credits, headline, lyricView, triviaView } from '../lib/store.svelte';
+  import { credits, headline, lyricView, factView } from '../lib/store.svelte';
 
   let { night = false }: { night?: boolean } = $props();
 
   const head = $derived(headline());
   const info = $derived(credits());
   const lyrics = $derived(lyricView(1, 2));
-  const trivia = $derived(triviaView());
+  const fact = $derived(factView());
 
   // Atomic starburst: 16 rays, alternating long and short.
   const rays = Array.from({ length: 16 }, (_, i) => {
@@ -71,21 +71,16 @@
         {/if}
       </div>
 
-      {#if trivia}
-        <div class="trivia" class:revealed={trivia.revealed}>
+      {#if fact}
+        <div class="trivia">
           <div class="heading">
-            <div>TRIVIA · {trivia.topic}</div>
-            <div>{trivia.counter}</div>
+            <div>DID YOU KNOW?</div>
+            <div>{fact.counter}</div>
           </div>
-          <div class="question clamp" style="--lines: 4">{trivia.question}</div>
-          {#each trivia.choices as choice}
-            <div class="choice clamp" class:correct={choice.correct} style="--lines: 2">
-              <span class="letter">{choice.letter}</span>{choice.text}
-            </div>
-          {/each}
-          {#if trivia.revealed && trivia.answer}
-            <div class="answer clamp" style="--lines: 2">{trivia.answer}</div>
-          {/if}
+          {#key fact.index}
+            <div class="fact-tag">{fact.category}</div>
+            <div class="fact clamp" style="--lines: 8">{fact.text}</div>
+          {/key}
         </div>
       {/if}
     </div>
@@ -245,39 +240,21 @@
     background: #b5431f;
     color: #fbf3df;
   }
-  .question {
-    margin-top: 14px;
-    font-size: 26px;
+  .fact-tag {
+    margin-top: 16px;
+    font-size: 18px;
     font-weight: 700;
-    line-height: 1.25;
+    letter-spacing: 3px;
+    color: #ffd79a;
   }
-  .choice {
-    margin-top: 8px;
-    padding: 0 8px;
-    font-size: 24px;
-    font-weight: 500;
-    line-height: 1.3;
+  .fact {
+    margin-top: 12px;
+    font-size: 27px; font-weight: 500; line-height: 1.32;
+    animation: fact-in 700ms ease-out;
   }
-  .question + .choice {
-    margin-top: 14px;
-  }
-  .letter {
-    display: inline-block;
-    width: 34px;
-    font-weight: 700;
-  }
-  .revealed .choice {
-    opacity: 0.55;
-  }
-  .revealed .choice.correct {
-    opacity: 1;
-    background: #fbf3df;
-    color: #8f3013;
-    font-weight: 700;
-  }
-  .answer {
-    margin-top: 14px;
-    font-size: 22px;
-    line-height: 1.3;
+  @keyframes fact-in {
+    from {
+      opacity: 0;
+    }
   }
 </style>
