@@ -25,6 +25,8 @@ export function fit(node: HTMLElement, options: FitOptions) {
     update(next: FitOptions) {
       options = next;
       run(next);
+      // A newly chosen font may still be loading.
+      document.fonts?.ready.then(() => run(options));
     },
   };
 }

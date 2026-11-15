@@ -33,6 +33,29 @@ FACT_CATEGORIES = [
     "Where you've heard it",
     "Connections",
 ]
+# Display style for an album, used by the "MCM - Dynamic" theme. The frontend
+# maps each name to a bundled font or a drawn motif.
+STYLE_FONTS = {
+    "geometric": "clean geometric sans (Jost), mid-century default",
+    "serif": "bold editorial serif (Fraunces)",
+    "retro": "rounded 1970s display face (Righteous)",
+    "typewriter": "worn typewriter (Special Elite)",
+    "marker": "hand-drawn marker (Permanent Marker)",
+    "stencil": "military stencil (Saira Stencil)",
+    "rounded": "soft, friendly rounded sans (Fredoka)",
+    "grotesk": "modern tech grotesk (Space Grotesk)",
+    "distressed": "rough, dirty print (Rubik Dirt)",
+    "graffiti": "spray-paint graffiti (Sedgwick Ave)",
+}
+STYLE_MOTIFS = {
+    "starburst": "atomic starburst, mid-century",
+    "circles": "concentric rings, like record grooves or op-art",
+    "stripes": "bold diagonal stripes, 1970s",
+    "dots": "halftone dots, pop art and print",
+    "waves": "flowing waves, psychedelic or surf",
+    "diamonds": "diamond lattice, glam and art deco",
+    "none": "no decoration, stark and minimal",
+}
 
 
 class RateLimited(Exception):
@@ -79,8 +102,16 @@ RESPONSE_SCHEMA = {
                 "required": ["category", "text"],
             },
         },
+        "albumStyle": {
+            "type": "object",
+            "properties": {
+                "font": {"type": "string", "enum": list(STYLE_FONTS)},
+                "motif": {"type": "string", "enum": list(STYLE_MOTIFS)},
+            },
+            "required": ["font", "motif"],
+        },
     },
-    "required": ["originalRelease", "originalReleaseDate", "writtenBy", "genre", "facts"],
+    "required": ["originalRelease", "originalReleaseDate", "writtenBy", "genre", "facts", "albumStyle"],
 }
 
 
@@ -113,6 +144,8 @@ reword them; pick different facts:
 """
 
     categories = "\n".join(f"   - {name}" for name in FACT_CATEGORIES)
+    fonts = "\n".join(f"   - {name}: {about}" for name, about in STYLE_FONTS.items())
+    motifs = "\n".join(f"   - {name}: {about}" for name, about in STYLE_MOTIFS.items())
     return f"""You are a careful music historian writing "Did you know?" cards for a
 vinyl listening display. Output JSON matching the provided schema.
 
@@ -142,6 +175,14 @@ FACT RULES. Return up to {FACT_COUNT} facts:
    studio, where the name came from, famous uses in films and TV, covers and
    samples) over generic biography such as "formed in X, signed to Y".
 5. Do not repeat the songwriter credits or release date as a fact on their own.
+
+STYLE. Also choose albumStyle: how the display should look while this album
+plays. This is a design choice, not a fact, so the accuracy rules do not apply;
+pick what best suits the album's era, genre and the look of its cover art.
+- font, for the song title:
+{fonts}
+- motif, a decoration behind the title:
+{motifs}
 {avoid_block}
 {context}
 """
@@ -197,7 +238,17 @@ def _coerce(payload):
         ][:8],
         "genre": (payload.get("genre") or "").strip(),
         "facts": facts[:FACT_COUNT],
+        "albumStyle": _coerce_style(payload.get("albumStyle")),
     }
+
+
+def _coerce_style(value):
+    if not isinstance(value, dict):
+        return None
+    font, motif = value.get("font"), value.get("motif")
+    if font not in STYLE_FONTS or motif not in STYLE_MOTIFS:
+        return None
+    return {"font": font, "motif": motif}
 
 
 def _rate_limit_details(exc):

@@ -1,47 +1,80 @@
 <script lang="ts">
   // E1 "Mid-Century Modern" and, with `night`, E2 "Mid-Century Night".
+  // With `dynamic`, "MCM - Dynamic": colours from the album cover and a title
+  // font and motif chosen per album by Gemini. Falls back to E1 when an album
+  // has neither.
   import Cover from '../lib/Cover.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
   import { fit } from '../lib/fit';
-  import { credits, headline, lyricView, factView } from '../lib/store.svelte';
+  import { app, credits, headline, lyricView, factView, type Palette } from '../lib/store.svelte';
+  import Motif from './Motif.svelte';
 
-  let { night = false }: { night?: boolean } = $props();
+  let { night = false, dynamic = false }: { night?: boolean; dynamic?: boolean } = $props();
+
+  // Title fonts Gemini can pick from (names match tools/gemini_metadata.py).
+  const FONTS: Record<string, { family: string; weight: number; spacing: string }> = {
+    geometric: { family: "'Jost', sans-serif", weight: 700, spacing: '-2px' },
+    serif: { family: "'Fraunces', serif", weight: 700, spacing: '-1px' },
+    retro: { family: "'Righteous', sans-serif", weight: 400, spacing: '0' },
+    typewriter: { family: "'Special Elite', monospace", weight: 400, spacing: '0' },
+    marker: { family: "'Permanent Marker', cursive", weight: 400, spacing: '0' },
+    stencil: { family: "'Saira Stencil One', sans-serif", weight: 400, spacing: '1px' },
+    rounded: { family: "'Fredoka', sans-serif", weight: 600, spacing: '-1px' },
+    grotesk: { family: "'Space Grotesk', sans-serif", weight: 700, spacing: '-2px' },
+    distressed: { family: "'Rubik Dirt', sans-serif", weight: 400, spacing: '0' },
+    graffiti: { family: "'Sedgwick Ave Display', cursive", weight: 400, spacing: '0' },
+  };
+
+  function paletteVars(p: Palette) {
+    return [
+      `--bg: ${p.bg}`,
+      `--ink: ${p.ink}`,
+      `--muted: ${p.muted}`,
+      `--current: ${p.current}`,
+      `--title-bg: ${p.titleBg}`,
+      `--title-ink: ${p.titleInk}`,
+      `--meter-bg: ${p.meterBg}`,
+      `--card-bg: ${p.cardBg}`,
+      `--card-ink: ${p.cardInk}`,
+      `--card-tag: ${p.cardTag}`,
+      `--burst-a: ${p.burstA}`,
+      `--burst-b: ${p.burstB}`,
+      `--face: ${p.face}`,
+      `--vu-scale: ${p.faceInk}`,
+      `--vu-needle: ${p.faceInk}`,
+      `--vu-red: ${p.vuRed}`,
+      `--cover-bg: ${p.dark ? '#0f0d0c' : p.ink}`,
+      `--record-label: ${p.titleBg}`,
+    ].join('; ');
+  }
+
+  const look = $derived(dynamic ? app.look : null);
+  const font = $derived(FONTS[look?.style?.font ?? ''] ?? FONTS.geometric);
+  const motif = $derived(look?.style?.motif ?? 'starburst');
+  const vars = $derived(
+    [
+      look?.palette ? paletteVars(look.palette) : '',
+      `--title-font: ${font.family}; --title-weight: ${font.weight}; --title-spacing: ${font.spacing}`,
+    ]
+      .filter(Boolean)
+      .join('; '),
+  );
 
   const head = $derived(headline());
   const info = $derived(credits());
   const lyrics = $derived(lyricView(1, 2));
   const fact = $derived(factView());
 
-  // Atomic starburst: 16 rays, alternating long and short.
-  const rays = Array.from({ length: 16 }, (_, i) => {
-    const angle = (i * 22.5 * Math.PI) / 180;
-    const long = i % 2 === 0;
-    const reach = long ? 90 : 62;
-    return {
-      x1: 100 + 16 * Math.cos(angle),
-      y1: 100 + 16 * Math.sin(angle),
-      x2: 100 + reach * Math.cos(angle),
-      y2: 100 + reach * Math.sin(angle),
-      dot: long ? 6 : 4.5,
-      colour: long ? '#23201C' : '#B5431F',
-    };
-  });
 </script>
 
-<div class="mcm" class:night>
+<div class="mcm" class:night class:dynamic style={vars}>
   <div class="top">
     <div class="cover"><Cover /></div>
     <div class="title-block">
-      <svg class="burst" viewBox="0 0 200 200" aria-hidden="true">
-        {#each rays as ray}
-          <line x1={ray.x1} y1={ray.y1} x2={ray.x2} y2={ray.y2} stroke={ray.colour} stroke-width="2.5" />
-          <circle cx={ray.x2} cy={ray.y2} r={ray.dot} fill={ray.colour} />
-        {/each}
-        <circle cx="100" cy="100" r="11" fill="#FBF3DF" stroke="#23201C" stroke-width="2.5" />
-      </svg>
+      <div class="burst"><Motif kind={motif} /></div>
       <div class="text">
         <div class="label">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
-        <h1 class="clamp" style="--lines: 2" use:fit={{ max: 100, min: 56, lines: 2, lineHeight: 1.05, text: head.title }}>
+        <h1 class="clamp" style="--lines: 2" use:fit={{ max: 100, min: 56, lines: 2, lineHeight: 1.05, text: head.title + font.family }}>
           {head.title}
         </h1>
         <div class="artist one-line">{head.artist}</div>
@@ -101,6 +134,15 @@
     --vu-red: #b5431f;
     --vu-needle: #23201c;
     --vu-font: 'Jost', sans-serif;
+    --title-bg: #d9a21b;
+    --title-ink: #23201c;
+    --meter-bg: #1f5f63;
+    --card-bg: #b5431f;
+    --card-ink: #fbf3df;
+    --card-tag: #ffd79a;
+    --burst-a: #23201c;
+    --burst-b: #b5431f;
+    --face: #fbf3df;
 
     width: 1920px;
     height: 1080px;
@@ -140,8 +182,20 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background: #d9a21b;
-    color: #23201c;
+    background: var(--title-bg);
+    color: var(--title-ink);
+  }
+  /* Album changes fade instead of jumping. */
+  .dynamic,
+  .dynamic .title-block,
+  .dynamic .meters,
+  .dynamic .face,
+  .dynamic .trivia,
+  .dynamic .line,
+  .dynamic .cover {
+    transition:
+      background-color 1.5s ease,
+      color 1.5s ease;
   }
   .burst {
     position: absolute;
@@ -163,10 +217,11 @@
   h1 {
     margin-top: 12px;
     padding-bottom: 6px;
+    font-family: var(--title-font, 'Jost', sans-serif);
     font-size: 100px;
     line-height: 1.05;
-    font-weight: 700;
-    letter-spacing: -2px;
+    font-weight: var(--title-weight, 700);
+    letter-spacing: var(--title-spacing, -2px);
   }
   .artist {
     margin-top: 6px;
@@ -188,10 +243,10 @@
     /* Wider than the 500px cover above it, so the block steps out to the right. */
     width: 580px;
     padding: 48px 102px;
-    background: #1f5f63;
+    background: var(--meter-bg);
   }
   .face {
-    background: #fbf3df;
+    background: var(--face);
     border-radius: 14px;
     overflow: hidden;
   }
@@ -237,15 +292,15 @@
     max-height: 468px;
     overflow: hidden;
     padding: 28px;
-    background: #b5431f;
-    color: #fbf3df;
+    background: var(--card-bg);
+    color: var(--card-ink);
   }
   .fact-tag {
     margin-top: 16px;
     font-size: 18px;
     font-weight: 700;
     letter-spacing: 3px;
-    color: #ffd79a;
+    color: var(--card-tag);
   }
   .fact {
     margin-top: 12px;
