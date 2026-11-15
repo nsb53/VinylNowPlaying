@@ -1,13 +1,10 @@
 <script lang="ts">
-  // "Techno · Spectral HUD": navy grid, magenta and cyan, three columns of
-  // audio bytes streaming down the right. The bytes follow the music: louder
-  // passages give larger values.
-  import { onMount } from 'svelte';
+  // "Techno · Spectral HUD": navy grid, magenta and cyan, the app's live
+  // console streaming down the right.
   import Cover from '../lib/Cover.svelte';
-  import CodeStream from '../lib/CodeStream.svelte';
+  import LogStream from '../lib/LogStream.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
   import { fit } from '../lib/fit';
-  import { vu } from '../lib/vu';
   import { credits, factView, headline, lyricView } from '../lib/store.svelte';
 
   const head = $derived(headline());
@@ -15,15 +12,6 @@
   const lyrics = $derived(lyricView(1, 1));
   const fact = $derived(factView());
 
-  let level = 0;
-  onMount(() => vu.subscribe((left, right) => (level = Math.max(left, right))));
-
-  const hex = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).toUpperCase().padStart(2, '0');
-  const nextBytes = () => {
-    const bytes: string[] = [];
-    for (let i = 0; i < 3; i += 1) bytes.push(hex(level * 200 + (Math.random() - 0.5) * 110 + 30));
-    return bytes.join(' ');
-  };
 </script>
 
 <div class="hud">
@@ -36,11 +24,7 @@
     {/each}
   </svg>
 
-  <div class="bytes">
-    <div class="col"><CodeStream next={nextBytes} rows={40} every={120} size={19} lineHeight={27} /></div>
-    <div class="col"><CodeStream next={nextBytes} rows={40} every={80} size={19} lineHeight={27} /></div>
-    <div class="col"><CodeStream next={nextBytes} rows={40} every={55} size={19} lineHeight={27} /></div>
-  </div>
+  <div class="bytes"><LogStream rows={43} size={16} lineHeight={24} /></div>
 
   <div class="main">
     <div class="top">
@@ -100,6 +84,8 @@
     --muted: #8e9ad0;
     --stream-head: #ffffff;
     --stream-ink: #36e3ff;
+    --stream-time: #6f7bb5;
+    --stream-good: #ff3ea5;
     --record: #02040c;
     --record-groove: #1b2550;
     --record-label: #ff3ea5;
@@ -133,25 +119,19 @@
     position: absolute;
     right: 0;
     top: 0;
-    width: 440px;
+    width: 560px;
     height: 1080px;
-    padding: 0 32px;
-    display: flex;
-    gap: 18px;
+    padding: 24px 32px;
     border-left: 1px solid rgba(54, 227, 255, 0.35);
     background: rgba(7, 11, 30, 0.85);
     font-family: 'Space Mono', monospace;
-  }
-  .col {
-    flex: 1 1 0;
-    min-width: 0;
   }
 
   .main {
     position: absolute;
     left: 72px;
     top: 72px;
-    width: 1336px;
+    width: 1216px;
     height: 936px;
     display: flex;
     flex-direction: column;

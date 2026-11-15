@@ -1,9 +1,8 @@
 <script lang="ts">
-  // "Techno · Terminal": near-black and cyan, the app's real source code
-  // streaming down the left, HUD brackets around the cover.
-  import { onMount } from 'svelte';
+  // "Techno · Terminal": near-black and cyan, the app's live console streaming
+  // down the left, HUD brackets around the cover.
   import Cover from '../lib/Cover.svelte';
-  import CodeStream from '../lib/CodeStream.svelte';
+  import LogStream from '../lib/LogStream.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
   import { fit } from '../lib/fit';
   import { credits, factView, headline, lyricView } from '../lib/store.svelte';
@@ -13,39 +12,10 @@
   const lyrics = $derived(lyricView(1, 1));
   const fact = $derived(factView());
 
-  // The app's real source code, served by the Pi (/api/source), file by file.
-  let code: string[] = [];
-  onMount(async () => {
-    try {
-      const response = await fetch('/api/source', { cache: 'no-store' });
-      const data = await response.json();
-      const lines: string[] = [];
-      for (const file of data.files ?? []) {
-        lines.push('', `# ─── ${file.path} ───`, '');
-        let blank = false;
-        for (const raw of String(file.text).split('\n')) {
-          const text = raw.replace(/\t/g, '    ').trimEnd();
-          // One blank line is enough between blocks.
-          if (!text && blank) continue;
-          blank = !text;
-          lines.push(text);
-        }
-      }
-      code = lines;
-      line = 0;
-    } catch {
-      // Leave the column empty; the state poll reports a lost connection.
-    }
-  });
-
-  // New lines enter at the top, so walk the code backwards: the column then
-  // reads top to bottom in the right order while it flows down.
-  let line = 0;
-  const nextCode = () => (code.length ? code[code.length - 1 - (line++ % code.length)] : '');
 </script>
 
 <div class="terminal">
-  <div class="stream"><CodeStream next={nextCode} rows={46} /></div>
+  <div class="stream"><LogStream rows={45} /></div>
 
   <div class="main">
     <div class="top">
@@ -104,6 +74,8 @@
     --white: #f2fffb;
     --stream-head: #f2fffb;
     --stream-ink: #3cf2c0;
+    --stream-time: #5e8f84;
+    --stream-good: #f2fffb;
     --record: #000;
     --record-groove: #12302a;
     --record-label: #3cf2c0;
@@ -124,7 +96,7 @@
 
   .stream {
     height: 1080px;
-    padding: 0 28px;
+    padding: 24px 28px;
     border-right: 1px solid rgba(60, 242, 192, 0.35);
     background: #070b0e;
     font-family: 'JetBrains Mono', monospace;
