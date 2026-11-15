@@ -104,9 +104,16 @@ async function manualControl(payload) {
   refreshControl();
 }
 
+let pageBuild = null;
+
 async function refreshControl() {
   const response = await fetch("/api/state", { cache: "no-store" });
   const state = await response.json();
+  // The app was updated since this page loaded: reload to get the new buttons.
+  if (state.build) {
+    if (pageBuild && state.build !== pageBuild) location.reload();
+    pageBuild = state.build;
+  }
   latestState = state;
   const track = state.current;
   statusEl.textContent = state.message || state.status || "Listening";
