@@ -3,8 +3,8 @@
 
 import { vu } from './vu';
 
-export type Theme = 'mcm' | 'mcm-night' | 'mcm-dynamic' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin' | 'jazz-neon' | 'brunch-skyline' | 'brunch-ticket';
-const THEMES: Theme[] = ['mcm', 'mcm-night', 'mcm-dynamic', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin', 'jazz-neon', 'brunch-skyline', 'brunch-ticket'];
+export type Theme = 'mcm' | 'mcm-night' | 'mcm-dynamic' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin' | 'jazz-neon' | 'brunch-skyline' | 'brunch-ticket' | 'techno-terminal' | 'techno-hud' | 'techno-acid';
+const THEMES: Theme[] = ['mcm', 'mcm-night', 'mcm-dynamic', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin', 'jazz-neon', 'brunch-skyline', 'brunch-ticket', 'techno-terminal', 'techno-hud', 'techno-acid'];
 
 type Fact = { category?: string; text?: string };
 

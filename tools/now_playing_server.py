@@ -27,7 +27,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 DIST_ROOT = WEB_ROOT / "dist"
-DISPLAY_THEMES = ("mcm", "mcm-night", "mcm-dynamic", "sunset", "pop", "grunge", "graffiti", "sleeve", "spin", "jazz-neon", "brunch-skyline", "brunch-ticket")
+DISPLAY_THEMES = ("mcm", "mcm-night", "mcm-dynamic", "sunset", "pop", "grunge", "graffiti", "sleeve", "spin", "jazz-neon", "brunch-skyline", "brunch-ticket", "techno-terminal", "techno-hud", "techno-acid")
 # A repeat match further than this from the expected position needs a second
 # scan to confirm it before the lyric timing is moved.
 RESYNC_TOLERANCE_SECONDS = 3.0

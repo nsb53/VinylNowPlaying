@@ -11,6 +11,9 @@
   import JazzNeon from './themes/JazzNeon.svelte';
   import BrunchSkyline from './themes/BrunchSkyline.svelte';
   import BrunchTicket from './themes/BrunchTicket.svelte';
+  import TechnoTerminal from './themes/TechnoTerminal.svelte';
+  import TechnoHUD from './themes/TechnoHUD.svelte';
+  import TechnoAcid from './themes/TechnoAcid.svelte';
 
   // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
   // so the layout is identical on every 16:9 TV.
@@ -23,6 +26,9 @@
     'jazz-neon': '#120C10',
     'brunch-skyline': '#E9B43C',
     'brunch-ticket': '#FBEFDD',
+    'techno-terminal': '#05070A',
+    'techno-hud': '#070B1E',
+    'techno-acid': '#0A0A0A',
   };
   let frame: HTMLDivElement;
   let scaleX = $state(1);
@@ -113,6 +119,12 @@
       <BrunchSkyline />
     {:else if app.theme === 'brunch-ticket'}
       <BrunchTicket />
+    {:else if app.theme === 'techno-terminal'}
+      <TechnoTerminal />
+    {:else if app.theme === 'techno-hud'}
+      <TechnoHUD />
+    {:else if app.theme === 'techno-acid'}
+      <TechnoAcid />
     {:else}
       <MidCentury night={app.theme === 'mcm-night'} dynamic={app.theme === 'mcm-dynamic'} />
     {/if}
