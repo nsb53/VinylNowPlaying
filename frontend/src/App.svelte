@@ -7,6 +7,7 @@
   import Pop from './themes/Pop.svelte';
   import Grunge from './themes/Grunge.svelte';
   import Graffiti from './themes/Graffiti.svelte';
+  import Spin from './themes/Spin.svelte';
 
   // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
   // so the layout is identical on every 16:9 TV.
@@ -15,6 +16,7 @@
     grunge: '#151612',
     graffiti: '#0E0E10',
     sleeve: '#0E0E10',
+    spin: '#101826',
   };
   let frame: HTMLDivElement;
   let scaleX = $state(1);
@@ -96,6 +98,8 @@
       <Grunge />
     {:else if app.theme === 'graffiti'}
       <Graffiti />
+    {:else if app.theme === 'spin'}
+      <Spin />
     {:else}
       <MidCentury night={app.theme === 'mcm-night'} />
     {/if}

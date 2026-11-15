@@ -3,8 +3,8 @@
 
 import { vu } from './vu';
 
-export type Theme = 'mcm' | 'mcm-night' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve';
-const THEMES: Theme[] = ['mcm', 'mcm-night', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve'];
+export type Theme = 'mcm' | 'mcm-night' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin';
+const THEMES: Theme[] = ['mcm', 'mcm-night', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin'];
 
 type Fact = { category?: string; text?: string };
 
