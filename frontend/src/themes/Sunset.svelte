@@ -1,5 +1,5 @@
 <script lang="ts">
-  // "80's": warm brown ground with a band of sunset stripes behind the cover.
+  // "Sunset Stripes" (1970s): warm brown ground with a band of sunset stripes behind the cover.
   import Cover from '../lib/Cover.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
   import { fit } from '../lib/fit';
