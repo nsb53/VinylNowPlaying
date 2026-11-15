@@ -21,6 +21,11 @@ import '@fontsource/permanent-marker/400.css';
 import '@fontsource/rubik-wet-paint/400.css';
 import '@fontsource/saira-stencil-one/400.css';
 import '@fontsource/sedgwick-ave-display/400.css';
+import '@fontsource/dm-sans/400.css';
+import '@fontsource/dm-sans/500.css';
+import '@fontsource/dm-sans/700.css';
+import '@fontsource/fraunces/600.css';
+import '@fontsource/fraunces/700.css';
 import './app.css';
 import App from './App.svelte';
 
