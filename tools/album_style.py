@@ -21,6 +21,10 @@ USER_AGENT = "vinyl-now-playing-prototype/0.1 (local dashboard)"
 # Lightness and saturation limits for the coloured blocks: no neon, no mud.
 BLOCK_L = (0.32, 0.62)
 BLOCK_S = (0.28, 0.72)
+# How different the title block must be from the cover beside it (contrast ratio).
+TITLE_COVER_CONTRAST = 1.8
+# Bump when the colour rules change, so saved album palettes are made again.
+PALETTE_VERSION = 2
 # Two colours this close in hue (0-1 around the wheel) count as the same.
 MIN_HUE_GAP = 0.07
 
@@ -115,8 +119,21 @@ def palette_from_colours(colours):
     if len(blocks) < 3:
         blocks.append((base_h - 0.03, _clamp(base_l + 0.14, BLOCK_L), _clamp(base_s + 0.1, BLOCK_S)))
 
+    # The title block sits right next to the cover, so it takes the accent that
+    # stands out most against the cover's main colour, and is darkened or
+    # lightened if even that one is too close.
+    hue = blocks[0][0]
+    cover_main = _hls(colours[0][1], colours[0][2], colours[0][3])
+    blocks.sort(key=lambda b: contrast(_hls(*b), cover_main), reverse=True)
+    h, l, s = blocks[0]
+    darker = colours[0][2] > 0.45
+    for _ in range(25):
+        if contrast(_hls(h, l, s), cover_main) >= TITLE_COVER_CONTRAST:
+            break
+        l += -0.02 if darker else 0.02
+    blocks[0] = (h, _clamp(l, (0.18, 0.8)), s)
+
     title_hls, meter_hls, card_hls = blocks
-    hue = title_hls[0]
 
     if dark:
         bg = _hls(hue, 0.11, min(0.3, title_hls[2] * 0.5))
