@@ -1,6 +1,7 @@
 <script lang="ts">
-  // "Techno · Terminal": near-black and cyan, the app's own code streaming down
-  // the left, HUD brackets around the cover.
+  // "Techno · Terminal": near-black and cyan, the app's real source code
+  // streaming down the left, HUD brackets around the cover.
+  import { onMount } from 'svelte';
   import Cover from '../lib/Cover.svelte';
   import CodeStream from '../lib/CodeStream.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
@@ -12,37 +13,35 @@
   const lyrics = $derived(lyricView(1, 1));
   const fact = $derived(factView());
 
-  // Lines adapted from the app itself: the level meter, recognition and lyric timing.
-  const CODE = `def level_loop(self):
-    peak = meter.read_peak()
-    rms = 20 * log10(abs(sample) + 1e-9)
-    if peak <= DEAD_INPUT_DB:
-        self.reopen_meter()
-    vu.push(left_db, right_db)
-sample = capture(seconds=8)
-track = shazam.identify(sample)
-if track and not same_track(track, current):
-    current = track
-    lyrics = lrclib.search(track)
-    info = gemini.lookup(track)
-    palette = album_style.from_cover(track.cover)
-offset = track.recognized_offset
-position = offset + elapsed + lyric_offset
-for line in synced_lyrics:
-    if line.time <= position:
-        active = line
-needle = -47 + 94 * deflection
-deflection = 0.7079 * 10 ** (db / 20)
-stream.send(level=rms, bands=spectrum)
-fact = facts[index % len(facts)]
-if silence_seconds > 120:
-    clear_now_playing()
-theme = settings.display_theme
-render(theme, track, lyrics, fact)`.split('\n');
-  // New lines enter at the top, so feed the code backwards: the column then
+  // The app's real source code, served by the Pi (/api/source), file by file.
+  let code: string[] = [];
+  onMount(async () => {
+    try {
+      const response = await fetch('/api/source', { cache: 'no-store' });
+      const data = await response.json();
+      const lines: string[] = [];
+      for (const file of data.files ?? []) {
+        lines.push('', `# ─── ${file.path} ───`, '');
+        let blank = false;
+        for (const raw of String(file.text).split('\n')) {
+          const text = raw.replace(/\t/g, '    ').trimEnd();
+          // One blank line is enough between blocks.
+          if (!text && blank) continue;
+          blank = !text;
+          lines.push(text);
+        }
+      }
+      code = lines;
+      line = 0;
+    } catch {
+      // Leave the column empty; the state poll reports a lost connection.
+    }
+  });
+
+  // New lines enter at the top, so walk the code backwards: the column then
   // reads top to bottom in the right order while it flows down.
   let line = 0;
-  const nextCode = () => CODE[CODE.length - 1 - (line++ % CODE.length)];
+  const nextCode = () => (code.length ? code[code.length - 1 - (line++ % code.length)] : '');
 </script>
 
 <div class="terminal">
