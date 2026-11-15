@@ -378,7 +378,9 @@ def lookup_album_style(track):
     changed = False
 
     cover = track.get("cover") or ""
-    if "palette" not in entry and cover and album_style.available():
+    stale = entry.get("paletteVersion") != album_style.PALETTE_VERSION
+    if ("palette" not in entry or stale) and cover and album_style.available():
+        entry["paletteVersion"] = album_style.PALETTE_VERSION
         try:
             entry["palette"] = album_style.palette_from_cover(cover)
         except Exception as exc:
