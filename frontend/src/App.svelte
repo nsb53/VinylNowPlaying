@@ -11,7 +11,7 @@
 
   // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
   // so the layout is identical on every 16:9 TV.
-  const PAGE_BG = { mcm: '#EFE3C8', 'mcm-night': '#1C1917', sunset: '#2A1710',
+  const PAGE_BG = { mcm: '#EFE3C8', 'mcm-night': '#1C1917', 'mcm-dynamic': '#EFE3C8', sunset: '#2A1710',
     pop: '#2B1E52',
     grunge: '#151612',
     graffiti: '#0E0E10',
@@ -80,7 +80,8 @@
   });
 
   $effect(() => {
-    document.body.style.background = PAGE_BG[app.theme];
+    document.body.style.background =
+      app.theme === 'mcm-dynamic' ? (app.look.palette?.bg ?? PAGE_BG.mcm) : PAGE_BG[app.theme];
   });
 </script>
 
@@ -101,7 +102,7 @@
     {:else if app.theme === 'spin'}
       <Spin />
     {:else}
-      <MidCentury night={app.theme === 'mcm-night'} />
+      <MidCentury night={app.theme === 'mcm-night'} dynamic={app.theme === 'mcm-dynamic'} />
     {/if}
   </div>
 </div>

@@ -3,10 +3,32 @@
 
 import { vu } from './vu';
 
-export type Theme = 'mcm' | 'mcm-night' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin';
-const THEMES: Theme[] = ['mcm', 'mcm-night', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin'];
+export type Theme = 'mcm' | 'mcm-night' | 'mcm-dynamic' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin';
+const THEMES: Theme[] = ['mcm', 'mcm-night', 'mcm-dynamic', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin'];
 
 type Fact = { category?: string; text?: string };
+
+/** Colours from the album cover, as #rrggbb. Made on the server (tools/album_style.py). */
+export type Palette = {
+  dark: boolean;
+  bg: string;
+  ink: string;
+  muted: string;
+  current: string;
+  titleBg: string;
+  titleInk: string;
+  meterBg: string;
+  cardBg: string;
+  cardInk: string;
+  cardTag: string;
+  burstA: string;
+  burstB: string;
+  face: string;
+  faceInk: string;
+  vuRed: string;
+};
+export type AlbumStyle = { font?: string; motif?: string };
+type AlbumLook = { palette?: Palette | null; style?: AlbumStyle | null };
 
 type Track = {
   id?: string;
@@ -20,6 +42,7 @@ type Track = {
   recognizedAt?: string;
   recognizedOffset?: number;
   lyricsError?: string;
+  albumStyle?: AlbumLook;
   lyrics?: { plain?: string; synced?: string; instrumental?: boolean; duration?: number };
   songInfo?: {
     originalRelease?: string;
@@ -49,6 +72,9 @@ export const app = $state({
   now: Date.now(),
   trackSince: Date.now(),
   fact: { index: 0, since: Date.now() },
+  // The last album's look. Kept while nothing is playing, so the screen stays
+  // steady between songs and sides.
+  look: { palette: null, style: null } as AlbumLook,
 });
 
 let trackId: string | null = null;
@@ -66,6 +92,8 @@ function applyState(data: any) {
     app.fact = { index: 0, since: Date.now() };
   }
   app.track = track;
+  const look = track?.albumStyle;
+  if (look && JSON.stringify(look) !== JSON.stringify(app.look)) app.look = look;
   app.message = data.message || data.status || 'Listening';
   app.error = data.error || null;
   app.lyricOffset = Number(data.lyricOffsetSeconds) || 0;

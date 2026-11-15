@@ -18,6 +18,7 @@ from urllib.request import Request, urlopen
 
 from dotenv import load_dotenv
 
+import album_style
 import gemini_metadata
 
 
@@ -26,7 +27,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 DIST_ROOT = WEB_ROOT / "dist"
-DISPLAY_THEMES = ("mcm", "mcm-night", "sunset", "pop", "grunge", "graffiti", "sleeve", "spin")
+DISPLAY_THEMES = ("mcm", "mcm-night", "mcm-dynamic", "sunset", "pop", "grunge", "graffiti", "sleeve", "spin")
 # A repeat match further than this from the expected position needs a second
 # scan to confirm it before the lyric timing is moved.
 RESYNC_TOLERANCE_SECONDS = 3.0
@@ -35,6 +36,7 @@ RESYNC_TOLERANCE_SECONDS = 3.0
 DEAD_INPUT_DB = -119.0
 DEAD_INPUT_SECONDS = 10.0
 METADATA_CACHE_PATH = ROOT / "state" / "metadata-cache.json"
+ALBUM_STYLE_CACHE_PATH = ROOT / "state" / "album-styles.json"
 SYNCED_TIME_RE = re.compile(r"^\[(\d+):(\d+(?:\.\d+)?)\]")
 APP_VERSION = "0.8.3"
 SONG_INFO_SCHEMA_VERSION = 12  # 12: facts replace trivia questions
@@ -334,6 +336,7 @@ def lookup_song_info(track):
         "writtenBy": enriched.get("writtenBy") or [],
         "genre": enriched.get("genre") or track.get("genre", ""),
         "facts": enriched.get("facts") or [],
+        "albumStyle": enriched.get("albumStyle"),
         "schemaVersion": SONG_INFO_SCHEMA_VERSION,
         "foundAt": utc_now(),
     }
@@ -348,6 +351,53 @@ def lookup_song_info(track):
         avoid_count=len(avoid_facts),
     )
     return info
+
+
+def album_style_key(track):
+    album = normalize_text(track.get("album"))
+    if album:
+        return f"{normalize_text(track.get('artist'))}::{album}"
+    return f"cover::{track.get('cover')}" if track.get("cover") else ""
+
+
+def lookup_album_style(track):
+    """Colours (from the cover) and font and motif (from Gemini) for the album.
+
+    Kept per album, so every song on a record keeps the same look even when
+    Shazam returns a different cover for some of them. Each part is filled in
+    once and then left alone.
+    """
+    key = album_style_key(track)
+    if not key:
+        return None
+    try:
+        cache = json.loads(ALBUM_STYLE_CACHE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        cache = {}
+    entry = cache.get(key) or {}
+    changed = False
+
+    cover = track.get("cover") or ""
+    if "palette" not in entry and cover and album_style.available():
+        try:
+            entry["palette"] = album_style.palette_from_cover(cover)
+        except Exception as exc:
+            entry["palette"] = None
+            log_event("album_style", result="cover_error", error=str(exc))
+        log_event("album_style", result="palette" if entry["palette"] else "no_colour", album=track.get("album", ""))
+        changed = True
+
+    ai_style = (track.get("songInfo") or {}).get("albumStyle")
+    if not entry.get("style") and ai_style:
+        entry["style"] = ai_style
+        log_event("album_style", result="style", font=ai_style.get("font"), motif=ai_style.get("motif"))
+        changed = True
+
+    if changed:
+        cache[key] = entry
+        ALBUM_STYLE_CACHE_PATH.parent.mkdir(exist_ok=True)
+        ALBUM_STYLE_CACHE_PATH.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+    return {"palette": entry.get("palette"), "style": entry.get("style")}
 
 
 def synced_lyrics_end(lyrics):
@@ -472,6 +522,7 @@ def manual_track_from_spec(spec, index, default_artist="", default_album="", def
     }
     try:
         track["songInfo"] = lookup_song_info(track)
+        track["albumStyle"] = lookup_album_style(track)
         track["lyrics"] = lookup_lyrics(track)
     except Exception as exc:
         track["lyrics"] = None
@@ -918,6 +969,10 @@ class NowPlayingService:
             track["recognizedAt"] = sample_start
             log_event("shazam", action="matched", artist=track.get("artist"), title=track.get("title"))
             track["songInfo"] = lookup_song_info(track)
+            try:
+                track["albumStyle"] = lookup_album_style(track)
+            except Exception as exc:
+                log_event("album_style", result="error", error=str(exc))
             try:
                 track["lyrics"] = lookup_lyrics(track)
             except Exception as exc:
