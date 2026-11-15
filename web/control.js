@@ -2,6 +2,7 @@ const statusEl = document.querySelector("#controlStatus");
 const versionEl = document.querySelector("#controlVersion");
 const titleEl = document.querySelector("#controlTitle");
 const artistEl = document.querySelector("#controlArtist");
+const coverEl = document.querySelector("#controlCover");
 const scanEl = document.querySelector("#controlScan");
 const nextEl = document.querySelector("#controlNext");
 const lastEl = document.querySelector("#controlLast");
@@ -120,6 +121,11 @@ async function refreshControl() {
   versionEl.textContent = `v${state.config?.appVersion || "-"}`;
   titleEl.textContent = track?.title || "Listening...";
   artistEl.textContent = track?.artist || "Waiting for recognition.";
+  const cover = track?.cover || "";
+  if (coverEl.dataset.url !== cover) {
+    coverEl.dataset.url = cover;
+    coverEl.style.backgroundImage = cover ? `url("${cover.replace(/"/g, "%22")}")` : "";
+  }
   nextEl.textContent = timeUntil(state.nextScanAt);
   lastEl.textContent = state.lastScan ? timeAgo(state.lastScan.finishedAt) : "-";
   levelEl.textContent = state.level?.peakDb ? `${state.level.peakDb.toFixed(1)} dBFS` : "-";

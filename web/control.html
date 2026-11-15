@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#1F5F63">
+    <meta name="theme-color" content="#0E0E10">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Vinyl Control">
@@ -24,9 +24,14 @@
       </header>
 
       <section class="now">
-        <p id="controlStatus" class="eyebrow">Loading</p>
-        <h2 id="controlTitle">Listening...</h2>
-        <p id="controlArtist" class="artist">Waiting for state.</p>
+        <div class="now-main">
+          <div id="controlCover" class="now-cover" role="img" aria-label="Album cover"></div>
+          <div class="now-text">
+            <p id="controlStatus" class="eyebrow">Loading</p>
+            <h2 id="controlTitle">Listening...</h2>
+            <p id="controlArtist" class="artist">Waiting for state.</p>
+          </div>
+        </div>
         <button id="controlScan" class="primary" type="button">Scan now</button>
         <dl class="facts">
           <div><dt>Next scan</dt><dd id="controlNext">-</dd></div>
@@ -130,7 +135,7 @@
 
       <a class="tv-link" href="/">Open the TV display</a>
     </main>
-    <script src="/control.js?v=2"></script>
+    <script src="/control.js?v=3"></script>
     <script src="/pwa.js"></script>
   </body>
 </html>

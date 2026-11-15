@@ -1,27 +1,48 @@
-/* Phone control page. Colours follow the Mid-Century TV theme. */
-:root {
-  --bg: #efe3c8;
-  --card: #fbf3df;
-  --ink: #23201c;
-  --muted: #5c554a;
-  --line: #d6c7a4;
-  --teal: #1f5f63;
-  --mustard: #d9a21b;
-  --rust: #b5431f;
-  --button: #efe3c8;
-  color-scheme: light dark;
+/* Phone control page. Look follows the "Sleeve Split" (B2) design:
+   near-black, thin-bordered dark cards, amber accents, Space Grotesk titles. */
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/inter-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/inter-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/inter-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/space-grotesk-latin-500-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Space Grotesk';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/space-grotesk-latin-700-normal.woff2') format('woff2');
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1c1917;
-    --card: #2a2623;
-    --ink: #efe3c8;
-    --muted: #b8ad96;
-    --line: #453f39;
-    --teal: #3d9197;
-    --button: #3a3531;
-  }
+:root {
+  --bg: #0e0e10;
+  --card: #17171a;
+  --raised: #1f1f23;
+  --border: #34343a;
+  --text: #f5f5f7;
+  --soft: #c9c9d1;
+  --muted: #a0a0a8;
+  --amber: #ffb547;
+  --orange: #ff7a3d;
+  --title: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  color-scheme: only dark;
 }
 
 * {
@@ -31,8 +52,8 @@
 body {
   margin: 0;
   background: var(--bg);
-  color: var(--ink);
-  font: 16px/1.45 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text);
+  font: 16px/1.45 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-text-size-adjust: 100%;
 }
 
@@ -56,41 +77,80 @@ dd {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 h1 {
+  font-family: var(--title);
   font-size: 34px;
-  line-height: 1.1;
-  letter-spacing: -0.5px;
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -1px;
 }
 .eyebrow {
   font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 2px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
   text-transform: uppercase;
+  color: var(--muted);
 }
 .version {
   font-size: 13px;
   color: var(--muted);
 }
 
-/* Now playing */
+/* Now playing: cover beside the title, as on the TV. */
 .now {
-  padding: 20px;
-  border-radius: 14px;
-  background: var(--mustard);
-  color: #23201c;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+}
+.now-main {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.now-cover {
+  flex: none;
+  width: 104px;
+  height: 104px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  /* A plain record until a cover is known. */
+  background: #1c1c20 center / cover no-repeat;
+  background-image: radial-gradient(circle, #0e0e10 0 3%, var(--amber) 4% 16%, #09090b 17% 40%, transparent 41%);
+}
+.now-text {
+  min-width: 0;
+}
+.now .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--amber);
+}
+.now .eyebrow::before {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
 }
 .now h2 {
   margin-top: 6px;
-  font-size: 28px;
-  line-height: 1.15;
+  font-family: var(--title);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.5px;
   overflow-wrap: anywhere;
 }
 .artist {
-  margin-top: 2px;
-  font-size: 18px;
+  margin-top: 4px;
+  font-size: 17px;
   font-weight: 500;
+  color: var(--soft);
 }
 .facts {
   display: grid;
@@ -98,34 +158,42 @@ h1 {
   grid-gap: 8px;
   margin-top: 16px;
   padding-top: 14px;
-  border-top: 2px solid rgba(35, 32, 28, 0.25);
+  border-top: 1px solid var(--border);
 }
 .facts dt {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 10.5px;
+  font-weight: 600;
   letter-spacing: 1px;
+  white-space: nowrap;
   text-transform: uppercase;
-  opacity: 0.75;
+  color: var(--muted);
 }
 .facts dd {
+  margin-top: 2px;
+  font-family: var(--title);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 /* Cards */
 .card {
   margin-top: 14px;
-  padding: 18px 20px;
-  border-radius: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
   background: var(--card);
 }
-h3 {
-  font-size: 18px;
+h3,
+h4 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 h4 {
-  font-size: 14px;
-  color: var(--muted);
+  font-size: 11px;
 }
 .card h3 + .segmented,
 .card h4 + .segmented {
@@ -142,20 +210,23 @@ h4 {
 .card-head.sub {
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--border);
 }
 .readout {
+  font-family: var(--title);
   font-size: 18px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  color: var(--amber);
 }
 .readout small {
+  font-family: 'Inter', system-ui, sans-serif;
   font-size: 13px;
   font-weight: 500;
   color: var(--muted);
 }
 .hint {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 14px;
   color: var(--muted);
 }
@@ -165,12 +236,12 @@ button,
 .tv-link {
   min-height: 46px;
   padding: 0 14px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--button);
-  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--text);
   font: inherit;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -184,20 +255,21 @@ button:focus-visible,
 .tv-link:focus-visible,
 summary:focus-visible,
 .console:focus-visible {
-  outline: 3px solid var(--teal);
+  outline: 2px solid var(--amber);
   outline-offset: 2px;
 }
 .primary {
   width: 100%;
   margin-top: 16px;
-  background: #23201c;
-  color: #fbf3df;
+  border-color: var(--amber);
+  background: var(--amber);
+  color: #0e0e10;
+  font-weight: 600;
 }
 .quiet {
   width: 100%;
   margin-top: 10px;
   background: none;
-  border: 1px solid var(--line);
 }
 .quiet.small {
   width: auto;
@@ -206,9 +278,9 @@ summary:focus-visible,
   font-size: 14px;
 }
 .quiet[aria-pressed='true'] {
-  background: var(--rust);
-  border-color: var(--rust);
-  color: #fbf3df;
+  border-color: var(--orange);
+  background: var(--orange);
+  color: #0e0e10;
 }
 .row {
   display: flex;
@@ -220,26 +292,33 @@ summary:focus-visible,
 }
 .segmented {
   display: flex;
+  gap: 4px;
   padding: 4px;
-  border-radius: 12px;
-  background: var(--button);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
 }
 .segmented button {
   flex: 1 1 0;
   min-height: 42px;
   padding: 0 6px;
+  border: 0;
   background: none;
+  color: var(--soft);
   font-size: 15px;
 }
 .segmented.grid {
   flex-wrap: wrap;
 }
 .segmented.grid button {
-  flex: 1 1 50%;
+  flex: 1 1 calc(50% - 4px);
+  font-size: 14px;
+  line-height: 1.2;
 }
 .segmented button.active {
-  background: var(--teal);
-  color: #fbf3df;
+  background: var(--amber);
+  color: #0e0e10;
+  font-weight: 600;
 }
 
 /* Collapsible cards */
@@ -258,9 +337,12 @@ summary .hint {
   margin: 0 0 0 12px;
   text-align: right;
 }
+summary h3 {
+  flex: none;
+  white-space: nowrap;
+}
 summary h3::after {
   content: ' +';
-  color: var(--muted);
 }
 details[open] summary h3::after {
   content: ' –';
@@ -282,8 +364,10 @@ details[open] summary {
 .fields span {
   display: block;
   margin-bottom: 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   color: var(--muted);
 }
 input,
@@ -292,10 +376,10 @@ select {
   width: 100%;
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
   background: var(--bg);
-  color: var(--ink);
+  color: var(--text);
   font: inherit;
 }
 
@@ -308,18 +392,19 @@ select {
   margin-top: 12px;
   padding: 10px 12px;
   overflow-y: auto;
-  border-radius: 10px;
-  background: #15120f;
-  color: #e9dfc8;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #09090b;
+  color: var(--soft);
   font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   overflow-wrap: anywhere;
   -webkit-overflow-scrolling: touch;
 }
 .console .time {
-  color: #8f8675;
+  color: #6e6e76;
 }
 .console .tag {
-  color: #e8b62e;
+  color: var(--amber);
   font-weight: 700;
 }
 .console .bad .tag,
@@ -330,7 +415,7 @@ select {
   color: #7fd0a8;
 }
 .console .empty {
-  color: #8f8675;
+  color: var(--muted);
 }
 
 .tv-link {
@@ -339,6 +424,5 @@ select {
   justify-content: center;
   margin-top: 14px;
   background: none;
-  border: 1px solid var(--line);
   text-decoration: none;
 }
