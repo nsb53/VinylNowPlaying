@@ -77,31 +77,6 @@ def save_metadata_cache(cache):
 # screen that stays open picks up new themes after an update.
 BUILD_FILES = (DIST_ROOT / "index.html", WEB_ROOT / "control.html", WEB_ROOT / "control.js")
 
-# The app's own code, shown streaming down the Techno · Terminal theme. Only
-# these files are ever sent: never .env, settings or anything else.
-SOURCE_FILES = (
-    "tools/now_playing_server.py",
-    "tools/audio_meter_alsa.py",
-    "tools/album_style.py",
-    "tools/gemini_metadata.py",
-    "tools/identify_shazam.py",
-    "frontend/src/lib/store.svelte.ts",
-    "frontend/src/lib/vu.ts",
-    "frontend/src/lib/VuMeter.svelte",
-    "frontend/src/lib/CodeStream.svelte",
-)
-
-
-def source_files():
-    files = []
-    for name in SOURCE_FILES:
-        try:
-            text = (ROOT / name).read_text(encoding="utf-8")
-        except OSError:
-            continue
-        files.append({"path": name, "text": SECRET_RE.sub(r"\1[hidden]", text)})
-    return files
-
 
 def page_build():
     stamps = []
@@ -1321,9 +1296,6 @@ class Handler(SimpleHTTPRequestHandler):
             payload["build"] = page_build()
             self.send_json(payload)
             return
-        if parsed.path == "/api/source":
-            self.send_json({"files": source_files()})
-            return
         if parsed.path == "/api/logs":
             # New log lines since the one numbered `after`, for the control page console.
             try:
@@ -1406,7 +1378,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_json({"error": "not found"}, status=404)
 
     def log_message(self, format, *args):
-        if self.path.startswith(("/api/level", "/api/stream", "/api/logs", "/api/source")):
+        if self.path.startswith(("/api/level", "/api/stream", "/api/logs")):
             return
         print(f"[http] {self.address_string()} {format % args}")
 

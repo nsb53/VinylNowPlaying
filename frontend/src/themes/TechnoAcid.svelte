@@ -1,10 +1,8 @@
 <script lang="ts">
   // "Techno · Acid Log": black, acid yellow and white, brutalist type, and the
-  // app's own live log streaming down the left. New log lines enter first;
-  // between them the recent log keeps cycling so the column never stops.
-  import { onMount } from 'svelte';
+  // app's live console streaming down the left.
   import Cover from '../lib/Cover.svelte';
-  import CodeStream from '../lib/CodeStream.svelte';
+  import LogStream from '../lib/LogStream.svelte';
   import VuMeter from '../lib/VuMeter.svelte';
   import { fit } from '../lib/fit';
   import { credits, factView, headline, lyricView } from '../lib/store.svelte';
@@ -14,48 +12,10 @@
   const lyrics = $derived(lyricView(1, 1));
   const fact = $derived(factView());
 
-  type LogLine = { seq: number; time: string; event: string; text: string };
-  const KEEP = 80;
-  let recent: string[] = [];
-  let fresh: string[] = [];
-  let cursor = 0;
-  let after = 0;
-
-  const format = (line: LogLine) => `[${line.time}] ${line.event} ${line.text}`;
-
-  async function poll() {
-    try {
-      const response = await fetch(`/api/logs?after=${after}`, { cache: 'no-store' });
-      const data = await response.json();
-      // Skip request lines and the TVs' screen-size reports: noise, not activity.
-      const lines = (data.lines ?? []).filter((line: LogLine) => line.event !== 'http' && line.event !== 'screen');
-      if (data.lines?.length) after = data.lines[data.lines.length - 1].seq;
-      if (lines.length) {
-        const text = lines.map(format);
-        fresh.push(...text.slice(-KEEP));
-        recent = [...recent, ...text].slice(-KEEP);
-      }
-    } catch {
-      // Keep cycling what we have; the state poll reports a lost connection.
-    }
-  }
-
-  onMount(() => {
-    poll();
-    const timer = setInterval(poll, 2000);
-    return () => clearInterval(timer);
-  });
-
-  const nextLine = () => {
-    if (fresh.length) return fresh.shift() as string;
-    if (!recent.length) return '';
-    cursor = (cursor + 1) % recent.length;
-    return recent[recent.length - 1 - cursor];
-  };
 </script>
 
 <div class="acid">
-  <div class="stream"><CodeStream next={nextLine} rows={44} every={260} size={17} lineHeight={24.5} /></div>
+  <div class="stream"><LogStream rows={43} size={17} lineHeight={24} /></div>
 
   <div class="main">
     <div class="rpm" aria-hidden="true">33⅓</div>
@@ -116,6 +76,8 @@
     --white: #ffffff;
     --stream-head: #e4ff1a;
     --stream-ink: #9a9a9a;
+    --stream-time: #5f5f5f;
+    --stream-good: #e4ff1a;
     --record: #000;
     --record-groove: #2a2a2a;
     --record-label: #e4ff1a;
@@ -136,7 +98,7 @@
 
   .stream {
     height: 1080px;
-    padding: 0 30px;
+    padding: 24px 30px;
     border-right: 6px solid var(--acid);
     font-family: 'IBM Plex Mono', monospace;
   }
