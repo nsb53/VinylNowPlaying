@@ -1,10 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-label="Vinyl Now Playing">
-  <rect width="1024" height="1024" rx="216" fill="#14100d"/>
-  <circle cx="512" cy="512" r="352" fill="#0a0908"/>
-  <circle cx="512" cy="512" r="282" fill="none" stroke="#2b2621" stroke-width="18"/>
-  <circle cx="512" cy="512" r="202" fill="none" stroke="#201c18" stroke-width="14"/>
-  <circle cx="512" cy="512" r="122" fill="#d9b45f"/>
-  <circle cx="512" cy="512" r="44" fill="#14100d"/>
-  <path d="M256 722c58-72 143-113 256-113s198 41 256 113" fill="none" stroke="#f4ead8" stroke-width="44" stroke-linecap="round"/>
-  <path d="M326 654c44-42 106-66 186-66s142 24 186 66" fill="none" stroke="#8dc4b7" stroke-width="32" stroke-linecap="round"/>
+  <rect width="1024" height="1024" rx="224" fill="#3b5bff"/>
+  <rect x="222" y="430" width="104" height="300" rx="52" fill="#fff"/>
+  <rect x="382" y="250" width="104" height="480" rx="52" fill="#fff"/>
+  <rect x="542" y="350" width="104" height="380" rx="52" fill="#fff"/>
+  <rect x="702" y="480" width="104" height="250" rx="52" fill="#fff"/>
 </svg>

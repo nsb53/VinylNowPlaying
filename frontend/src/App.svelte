@@ -8,6 +8,9 @@
   import Grunge from './themes/Grunge.svelte';
   import Graffiti from './themes/Graffiti.svelte';
   import Spin from './themes/Spin.svelte';
+  import JazzNeon from './themes/JazzNeon.svelte';
+  import BrunchSkyline from './themes/BrunchSkyline.svelte';
+  import BrunchTicket from './themes/BrunchTicket.svelte';
 
   // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
   // so the layout is identical on every 16:9 TV.
@@ -17,6 +20,9 @@
     graffiti: '#0E0E10',
     sleeve: '#0E0E10',
     spin: '#101826',
+    'jazz-neon': '#120C10',
+    'brunch-skyline': '#E9B43C',
+    'brunch-ticket': '#FBEFDD',
   };
   let frame: HTMLDivElement;
   let scaleX = $state(1);
@@ -101,6 +107,12 @@
       <Graffiti />
     {:else if app.theme === 'spin'}
       <Spin />
+    {:else if app.theme === 'jazz-neon'}
+      <JazzNeon />
+    {:else if app.theme === 'brunch-skyline'}
+      <BrunchSkyline />
+    {:else if app.theme === 'brunch-ticket'}
+      <BrunchTicket />
     {:else}
       <MidCentury night={app.theme === 'mcm-night'} dynamic={app.theme === 'mcm-dynamic'} />
     {/if}

@@ -27,7 +27,7 @@ WEB_ROOT = ROOT / "web"
 STATE_PATH = ROOT / "state" / "now-playing.json"
 SETTINGS_PATH = ROOT / "state" / "settings.json"
 DIST_ROOT = WEB_ROOT / "dist"
-DISPLAY_THEMES = ("mcm", "mcm-night", "mcm-dynamic", "sunset", "pop", "grunge", "graffiti", "sleeve", "spin")
+DISPLAY_THEMES = ("mcm", "mcm-night", "mcm-dynamic", "sunset", "pop", "grunge", "graffiti", "sleeve", "spin", "jazz-neon", "brunch-skyline", "brunch-ticket")
 # A repeat match further than this from the expected position needs a second
 # scan to confirm it before the lyric timing is moved.
 RESYNC_TOLERANCE_SECONDS = 3.0
@@ -71,6 +71,21 @@ def load_metadata_cache():
 def save_metadata_cache(cache):
     METADATA_CACHE_PATH.parent.mkdir(exist_ok=True)
     METADATA_CACHE_PATH.write_text(json.dumps(cache, indent=2), encoding="utf-8")
+
+
+# Pages compare this between polls and reload themselves when it changes, so a
+# screen that stays open picks up new themes after an update.
+BUILD_FILES = (DIST_ROOT / "index.html", WEB_ROOT / "control.html", WEB_ROOT / "control.js")
+
+
+def page_build():
+    stamps = []
+    for path in BUILD_FILES:
+        try:
+            stamps.append(int(path.stat().st_mtime))
+        except OSError:
+            pass
+    return str(max(stamps, default=0))
 
 
 def utc_now():
@@ -1220,10 +1235,11 @@ class Handler(SimpleHTTPRequestHandler):
         return str(WEB_ROOT / parsed.path.lstrip("/"))
 
     def end_headers(self):
-        # Pages must be re-checked on every load so a TV picks up a new build;
-        # the built script and style files have a new name each time.
+        # Pages, and the scripts and icons whose names stay the same, must be
+        # re-checked on every load so a TV or phone picks up an update. The
+        # built files under /dist/assets/ get a new name each time instead.
         path = urlparse(self.path).path
-        if path in ("/", "/classic", "/control") or path.endswith(".html"):
+        if not path.startswith("/dist/assets/") and not path.startswith("/api/"):
             self.send_header("Cache-Control", "no-cache")
         super().end_headers()
 
@@ -1277,6 +1293,7 @@ class Handler(SimpleHTTPRequestHandler):
             payload = self.service.snapshot()
             # Lets a screen work out timing without trusting its own clock.
             payload["serverTime"] = utc_now()
+            payload["build"] = page_build()
             self.send_json(payload)
             return
         if parsed.path == "/api/logs":

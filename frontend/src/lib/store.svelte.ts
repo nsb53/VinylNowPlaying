@@ -3,8 +3,8 @@
 
 import { vu } from './vu';
 
-export type Theme = 'mcm' | 'mcm-night' | 'mcm-dynamic' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin';
-const THEMES: Theme[] = ['mcm', 'mcm-night', 'mcm-dynamic', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin'];
+export type Theme = 'mcm' | 'mcm-night' | 'mcm-dynamic' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin' | 'jazz-neon' | 'brunch-skyline' | 'brunch-ticket';
+const THEMES: Theme[] = ['mcm', 'mcm-night', 'mcm-dynamic', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin', 'jazz-neon', 'brunch-skyline', 'brunch-ticket'];
 
 type Fact = { category?: string; text?: string };
 
@@ -78,12 +78,18 @@ export const app = $state({
 });
 
 let trackId: string | null = null;
+let build: string | null = null;
 
 function setTheme(value: unknown) {
   if (!pinnedTheme && THEMES.includes(value as Theme)) app.theme = value as Theme;
 }
 
 function applyState(data: any) {
+  // The app was updated since this screen loaded: reload to get the new themes.
+  if (data.build) {
+    if (build && data.build !== build) location.reload();
+    build = data.build;
+  }
   const track: Track | null = data.current ?? null;
   const id = track ? track.id || `${track.artist || ''}:${track.title || ''}` : null;
   if (id !== trackId) {
