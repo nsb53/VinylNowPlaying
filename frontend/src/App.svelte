@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { app, start } from './lib/store.svelte';
+  import THEME_LIST from '../../web/themes.json';
   import MidCentury from './themes/MidCentury.svelte';
   import Sleeve from './themes/Sleeve.svelte';
   import Sunset from './themes/Sunset.svelte';
@@ -14,22 +15,54 @@
   import TechnoTerminal from './themes/TechnoTerminal.svelte';
   import TechnoHUD from './themes/TechnoHUD.svelte';
   import TechnoAcid from './themes/TechnoAcid.svelte';
+  import TechnoDesktop from './themes/TechnoDesktop.svelte';
+  import SixtiesSilkscreen from './themes/SixtiesSilkscreen.svelte';
+  import SixtiesPsych from './themes/SixtiesPsych.svelte';
+  import SixtiesTieDye from './themes/SixtiesTieDye.svelte';
+  import SeventiesDisco from './themes/SeventiesDisco.svelte';
+  import SeventiesStripes from './themes/SeventiesStripes.svelte';
+  import EightiesSynthwave from './themes/EightiesSynthwave.svelte';
+  import EightiesMemphis from './themes/EightiesMemphis.svelte';
+  import EightiesMixtape from './themes/EightiesMixtape.svelte';
+  import NinetiesRave from './themes/NinetiesRave.svelte';
+  import NinetiesJewelCase from './themes/NinetiesJewelCase.svelte';
 
-  // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
-  // so the layout is identical on every 16:9 TV.
-  const PAGE_BG = { mcm: '#EFE3C8', 'mcm-night': '#1C1917', 'mcm-dynamic': '#EFE3C8', sunset: '#2A1710',
-    pop: '#2B1E52',
-    grunge: '#151612',
-    graffiti: '#0E0E10',
-    sleeve: '#0E0E10',
-    spin: '#101826',
-    'jazz-neon': '#120C10',
-    'brunch-skyline': '#E9B43C',
-    'brunch-ticket': '#FBEFDD',
-    'techno-terminal': '#05070A',
-    'techno-hud': '#070B1E',
-    'techno-acid': '#0A0A0A',
+  // Theme names, groups and colours live in web/themes.json (shared with the
+  // server and the control page). The Mid-Century family is drawn by one
+  // component with options, so it is handled below.
+  const VIEWS: Record<string, typeof Sleeve> = {
+    sleeve: Sleeve,
+    sunset: Sunset,
+    pop: Pop,
+    grunge: Grunge,
+    graffiti: Graffiti,
+    spin: Spin,
+    'jazz-neon': JazzNeon,
+    'brunch-skyline': BrunchSkyline,
+    'brunch-ticket': BrunchTicket,
+    'techno-terminal': TechnoTerminal,
+    'techno-hud': TechnoHUD,
+    'techno-acid': TechnoAcid,
+    'techno-desktop': TechnoDesktop,
+    'sixties-silkscreen': SixtiesSilkscreen,
+    'sixties-psych': SixtiesPsych,
+    'sixties-tiedye': SixtiesTieDye,
+    'seventies-disco': SeventiesDisco,
+    'seventies-stripes': SeventiesStripes,
+    'eighties-synthwave': EightiesSynthwave,
+    'eighties-memphis': EightiesMemphis,
+    'eighties-mixtape': EightiesMixtape,
+    'nineties-rave': NinetiesRave,
+    'nineties-jewelcase': NinetiesJewelCase,
   };
+  // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
+  // so the layout is identical on every 16:9 TV. The page around it takes the
+  // theme's main colour.
+  const PAGE_BG: Record<string, string> = Object.fromEntries(THEME_LIST.map((t) => [t.id, t.colors[0]]));
+  const View = $derived(VIEWS[app.theme]);
+  // The control page shows themes in a small frame (?preview=1); those frames
+  // must not report their size as if they were a TV.
+  const previewOnly = new URLSearchParams(location.search).has('preview');
   let frame: HTMLDivElement;
   let scaleX = $state(1);
   let scaleY = $state(1);
@@ -53,7 +86,7 @@
     scaleY = y;
     left = (width - 1920 * x) / 2;
     top = (height - 1080 * y) / 2;
-    report(width, height);
+    if (!previewOnly) report(width, height);
   }
 
   // Tell the server what this screen measures, so a cropped TV can be diagnosed from its log.
@@ -101,30 +134,8 @@
 
 <div class="frame" bind:this={frame}>
   <div class="stage" style="left: {left}px; top: {top}px; transform: scale({scaleX}, {scaleY})">
-    {#if app.theme === 'sleeve'}
-      <Sleeve />
-    {:else if app.theme === 'sunset'}
-      <Sunset />
-    {:else if app.theme === 'pop'}
-      <Pop />
-    {:else if app.theme === 'grunge'}
-      <Grunge />
-    {:else if app.theme === 'graffiti'}
-      <Graffiti />
-    {:else if app.theme === 'spin'}
-      <Spin />
-    {:else if app.theme === 'jazz-neon'}
-      <JazzNeon />
-    {:else if app.theme === 'brunch-skyline'}
-      <BrunchSkyline />
-    {:else if app.theme === 'brunch-ticket'}
-      <BrunchTicket />
-    {:else if app.theme === 'techno-terminal'}
-      <TechnoTerminal />
-    {:else if app.theme === 'techno-hud'}
-      <TechnoHUD />
-    {:else if app.theme === 'techno-acid'}
-      <TechnoAcid />
+    {#if View}
+      <View />
     {:else}
       <MidCentury night={app.theme === 'mcm-night'} dynamic={app.theme === 'mcm-dynamic'} />
     {/if}

@@ -41,24 +41,24 @@
         </dl>
       </section>
 
-      <section class="card">
+      <section class="card theme-card">
         <h3>TV theme</h3>
-        <div class="segmented grid" role="group" aria-label="TV theme">
-          <button data-display-theme="mcm" type="button">Mid-Century</button>
-          <button data-display-theme="mcm-night" type="button">Mid-Century Night</button>
-          <button data-display-theme="mcm-dynamic" type="button">MCM - Dynamic</button>
-          <button data-display-theme="sunset" type="button">80's</button>
-          <button data-display-theme="pop" type="button">90's Pop</button>
-          <button data-display-theme="grunge" type="button">Grunge</button>
-          <button data-display-theme="graffiti" type="button">Graffiti</button>
-          <button data-display-theme="sleeve" type="button">Modern</button>
-          <button data-display-theme="spin" type="button">Spin</button>
-          <button data-display-theme="jazz-neon" type="button">Jazz · After Hours</button>
-          <button data-display-theme="brunch-skyline" type="button">Jazz Brunch · Skyline</button>
-          <button data-display-theme="brunch-ticket" type="button">Jazz Brunch · Ticket</button>
-          <button data-display-theme="techno-terminal" type="button">Techno · Terminal</button>
-          <button data-display-theme="techno-hud" type="button">Techno · Spectral HUD</button>
-          <button data-display-theme="techno-acid" type="button">Techno · Acid Log</button>
+        <button id="themePicker" class="picker" type="button" aria-haspopup="listbox" aria-expanded="false" aria-controls="themeList">
+          <span id="themeCurrentIcon" class="swatch" aria-hidden="true"></span>
+          <span class="picker-text"><span id="themeCurrentName">Loading</span><small id="themeCurrentGroup"></small></span>
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div id="themeList" class="theme-list" role="listbox" aria-label="TV themes" hidden></div>
+        <div id="themePreview" class="preview" hidden>
+          <div class="preview-head">
+            <span id="themePreviewIcon" class="swatch" aria-hidden="true"></span>
+            <span>Preview: <strong id="themePreviewName"></strong></span>
+          </div>
+          <div class="preview-frame"><iframe id="themePreviewFrame" title="Theme preview" tabindex="-1"></iframe></div>
+          <div class="row">
+            <button id="themeApply" class="primary-inline" type="button">Show on TV</button>
+            <button id="themeCancel" type="button">Cancel</button>
+          </div>
         </div>
       </section>
 

@@ -2,9 +2,11 @@
 // Themes only read from here, so a new theme is a layout file and nothing else.
 
 import { vu } from './vu';
+import THEME_LIST from '../../../web/themes.json';
 
-export type Theme = 'mcm' | 'mcm-night' | 'mcm-dynamic' | 'sunset' | 'pop' | 'grunge' | 'graffiti' | 'sleeve' | 'spin' | 'jazz-neon' | 'brunch-skyline' | 'brunch-ticket' | 'techno-terminal' | 'techno-hud' | 'techno-acid';
-const THEMES: Theme[] = ['mcm', 'mcm-night', 'mcm-dynamic', 'sunset', 'pop', 'grunge', 'graffiti', 'sleeve', 'spin', 'jazz-neon', 'brunch-skyline', 'brunch-ticket', 'techno-terminal', 'techno-hud', 'techno-acid'];
+export type Theme = string;
+// The full list, shared with the server and the control page.
+const THEMES: Theme[] = THEME_LIST.map((theme) => theme.id);
 
 type Fact = { category?: string; text?: string };
 
