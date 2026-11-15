@@ -337,6 +337,10 @@ summary .hint {
   margin: 0 0 0 12px;
   text-align: right;
 }
+summary h3 {
+  flex: none;
+  white-space: nowrap;
+}
 summary h3::after {
   content: ' +';
 }
