@@ -450,3 +450,55 @@ fetch("/themes.json", { cache: "no-store" })
   .catch(() => {
     themeCurrentNameEl.textContent = "Themes unavailable";
   });
+
+// ---- Restart the app: tap twice (so it can't happen by accident) ----
+const restartEl = document.querySelector("#restartApp");
+const restartStatusEl = document.querySelector("#restartStatus");
+let restartArmedUntil = 0;
+let restartReset = null;
+
+function setRestartButton(text, { armed = false, disabled = false } = {}) {
+  restartEl.textContent = text;
+  restartEl.setAttribute("aria-pressed", String(armed));
+  restartEl.disabled = disabled;
+}
+
+async function waitForApp() {
+  const started = Date.now();
+  // Give it a moment to stop before asking whether it is back.
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+  while (Date.now() - started < 60000) {
+    try {
+      const response = await fetch("/api/state", { cache: "no-store" });
+      if (response.ok) return true;
+    } catch {
+      // Still restarting.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  return false;
+}
+
+restartEl.addEventListener("click", async () => {
+  if (Date.now() > restartArmedUntil) {
+    restartArmedUntil = Date.now() + 4000;
+    setRestartButton("Tap again to restart", { armed: true });
+    clearTimeout(restartReset);
+    restartReset = setTimeout(() => setRestartButton("Restart app"), 4000);
+    return;
+  }
+  clearTimeout(restartReset);
+  restartArmedUntil = 0;
+  setRestartButton("Restarting…", { disabled: true });
+  restartStatusEl.textContent = "";
+  try {
+    await fetch("/api/restart", { method: "POST" });
+  } catch {
+    // The app may stop before it answers; carry on and wait for it.
+  }
+  const back = await waitForApp();
+  restartStatusEl.textContent = back ? "Back up" : "Not back yet";
+  setRestartButton("Restart app");
+  if (back) refreshControl();
+  setTimeout(() => (restartStatusEl.textContent = ""), 6000);
+});
