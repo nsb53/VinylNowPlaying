@@ -89,6 +89,28 @@ def page_build():
     return str(max(stamps, default=0))
 
 
+# Every scan records a short sample for Shazam. Only the newest few are kept
+# (for checking what the app heard); older ones are deleted so the card never
+# fills up. Only the app's own samples (dashboard-*.wav) are touched.
+CAPTURES_DIR = ROOT / "captures"
+KEEP_CAPTURES = 20
+
+
+def prune_captures(keep=KEEP_CAPTURES):
+    try:
+        samples = sorted(CAPTURES_DIR.glob("dashboard-*.wav"), key=lambda path: path.stat().st_mtime)
+    except OSError:
+        return 0
+    removed = 0
+    for path in samples[:-keep] if keep else samples:
+        try:
+            path.unlink()
+            removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
@@ -951,7 +973,8 @@ class NowPlayingService:
         )
 
     def capture(self, seconds):
-        sample_path = ROOT / "captures" / f"dashboard-{int(time.time())}-{seconds}s.wav"
+        prune_captures()
+        sample_path = CAPTURES_DIR / f"dashboard-{int(time.time())}-{seconds}s.wav"
         command = capture_command(self.args, sample_path, seconds)
         log_event("capture", action="start", seconds=seconds, path=str(sample_path.relative_to(ROOT)))
         with self.audio_lock:
@@ -1209,6 +1232,11 @@ class NowPlayingService:
                     self.level_process.terminate()
                 self.level_process = None
 
+    def restart(self):
+        time.sleep(0.5)  # let the reply reach the phone first
+        self.shutdown()
+        os._exit(0)
+
     def shutdown(self):
         self.stop_requested.set()
         with self.audio_lock:
@@ -1336,6 +1364,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.service.request_scan()
             self.send_json({"ok": True})
             return
+        if parsed.path == "/api/restart":
+            # Stop cleanly; on the Pi the system service starts the app again
+            # a few seconds later. (Run by hand, the app just stops.)
+            log_event("app", action="restart", requested_by=self.client_address[0])
+            self.send_json({"ok": True})
+            threading.Thread(target=self.service.restart, daemon=True).start()
+            return
         if parsed.path == "/api/lyrics/adjust":
             length = int(self.headers.get("Content-Length", "0") or "0")
             body = self.rfile.read(length).decode("utf-8") if length else "{}"
@@ -1409,6 +1444,9 @@ def main():
     args.resolved_audio_backend = resolve_audio_backend(args)
 
     service = NowPlayingService(args)
+    removed = prune_captures()
+    if removed:
+        log_event("captures", action="pruned", removed=removed, kept=KEEP_CAPTURES)
     Handler.service = service
 
     server = ThreadingHTTPServer((args.host, args.port), Handler)
