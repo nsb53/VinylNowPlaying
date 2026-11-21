@@ -561,3 +561,42 @@ select {
   color: #0e0e10;
   font-weight: 600;
 }
+
+/* Gemini status line in the now-playing card. */
+.service {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 14px;
+  color: var(--soft);
+}
+.service .dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.service[data-state='ok'] .dot {
+  background: #7fd0a8;
+}
+.service[data-state='paused'] .dot {
+  background: var(--amber);
+}
+.service[data-state='retrying'] .dot {
+  background: var(--orange);
+}
+.service strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.service small {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--muted);
+}

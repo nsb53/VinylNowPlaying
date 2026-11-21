@@ -140,6 +140,7 @@ async function refreshControl() {
   });
   showCurrentTheme(state.config?.displayTheme || "mcm");
   showRunState(state.status);
+  showGemini(state.gemini);
   syncManualControls(state);
 }
 
@@ -533,3 +534,34 @@ async function setRunning(run) {
 
 stopEl.addEventListener("click", () => setRunning(false));
 startEl.addEventListener("click", () => setRunning(true));
+
+// ---- Gemini status: working, paused at the daily limit, or failing ----
+const geminiEl = document.querySelector("#geminiStatus");
+const geminiTextEl = document.querySelector("#geminiText");
+const geminiHintEl = document.querySelector("#geminiHint");
+
+function clockTime(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+function showGemini(gemini) {
+  let state = gemini?.state || "unknown";
+  let text = "status unknown";
+  let hint = "";
+  if (state === "ok") {
+    text = "working";
+    if (gemini.lastAnswerAt) hint = `Last answer ${timeAgo(gemini.lastAnswerAt)}.`;
+  } else if (state === "paused") {
+    text = gemini.daily ? "paused: free daily limit reached" : "paused: too many requests";
+    hint = `Back at ${clockTime(gemini.until)}. Songs, lyrics and covers still show; facts and songwriters return then.`;
+  } else if (state === "retrying") {
+    text = `not answering (${gemini.detail})`;
+    hint = "Tries again in a few minutes.";
+  } else if (state === "off") {
+    text = "off: no API key";
+    hint = "Add GEMINI_API_KEY to the Pi's .env file to get facts and songwriters.";
+  }
+  geminiEl.dataset.state = state;
+  geminiTextEl.textContent = text;
+  geminiHintEl.textContent = hint;
+}
