@@ -64,6 +64,11 @@ import '@fontsource/vt323/400.css';
 import '@fontsource/arimo/400.css';
 import '@fontsource/arimo/700.css';
 import '@fontsource/inter/700.css';
+import '@fontsource/rye/400.css';
+import '@fontsource/alfa-slab-one/400.css';
+import '@fontsource/bitter/400.css';
+import '@fontsource/bitter/500.css';
+import '@fontsource/bitter/700.css';
 import './app.css';
 import App from './App.svelte';
 
