@@ -28,7 +28,7 @@
 
   <div class="right">
     <div class="header">
-      <div class="label">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+      <div class="label">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
       <h1 class="clamp" style="--lines: 2" use:fit={{ max: 112, min: 60, lines: 2, lineHeight: 0.98, text: head.title }}>
         {head.title}
       </h1>

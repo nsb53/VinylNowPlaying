@@ -68,6 +68,7 @@ export const app = $state({
   theme: (pinnedTheme ?? 'mcm') as Theme,
   track: null as Track | null,
   message: 'Connecting',
+  status: '',
   error: null as string | null,
   lyricOffset: 0,
   lyricScroll: 0,
@@ -103,6 +104,7 @@ function applyState(data: any) {
   const look = track?.albumStyle;
   if (look && JSON.stringify(look) !== JSON.stringify(app.look)) app.look = look;
   app.message = data.message || data.status || 'Listening';
+  app.status = data.status || '';
   app.error = data.error || null;
   app.lyricOffset = Number(data.lyricOffsetSeconds) || 0;
   app.lyricScroll = Math.round(Number(data.lyricScroll) || 0);
@@ -197,9 +199,11 @@ function clamp(value: number, min: number, max: number) {
 export function headline() {
   const track = app.track;
   if (track) {
-    return { playing: true, title: track.title || 'Unknown Title', artist: track.artist || 'Unknown Artist' };
+    return { playing: true, stopped: false, title: track.title || 'Unknown Title', artist: track.artist || 'Unknown Artist' };
   }
-  return { playing: false, title: 'Listening…', artist: app.error || app.message };
+  // Stopped from the control page: say so rather than "Listening".
+  if (app.status === 'stopped') return { playing: false, stopped: true, title: 'Stopped', artist: 'Press Start on the control page' };
+  return { playing: false, stopped: false, title: 'Listening…', artist: app.error || app.message };
 }
 
 export function credits() {

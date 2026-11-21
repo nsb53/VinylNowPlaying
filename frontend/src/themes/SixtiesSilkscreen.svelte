@@ -31,7 +31,7 @@
       <div class="letter" style="background: #4fd1e8">P</div>
       <div class="letter" style="background: #ffd93d">O</div>
       <div class="letter" style="background: #4fd1e8">P</div>
-      <div class="now">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+      <div class="now">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
     </div>
     <div class="banner">
       <h1 class="clamp" style="--lines: 2" use:fit={{ max: 104, min: 60, lines: 2, lineHeight: 1, text: head.title }}>{head.title}</h1>

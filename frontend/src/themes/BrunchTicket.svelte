@@ -48,7 +48,7 @@
           <h1 class="clamp" style="--lines: 2" use:fit={{ max: 92, min: 56, lines: 2, lineHeight: 1, text: head.title }}>
             {head.title}
           </h1>
-          <div class="label">{head.playing ? 'SESSIONS' : 'LISTENING'}</div>
+          <div class="label">{head.playing ? 'SESSIONS' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
         </div>
         <div class="lyrics">
           {#if lyrics.lines.length}
@@ -83,7 +83,7 @@
 
     <div class="band">
       <div class="who">
-        <div class="now">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+        <div class="now">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
         <div class="artist one-line">{head.artist}</div>
         <div class="rule"></div>
         <div class="details one-line">{details}</div>

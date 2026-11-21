@@ -41,7 +41,7 @@
       <circle cx="560" cy="490" r="11" class="spoke" />
     </svg>
     <div class="on-label">
-      <div class="side">SIDE A · {head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+      <div class="side">SIDE A · {head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
       <h1 class="one-line" use:fit={{ max: 64, min: 36, lines: 1, lineHeight: 1.05, text: head.title }}>{head.title}</h1>
       <div class="artist one-line">{head.artist}</div>
     </div>

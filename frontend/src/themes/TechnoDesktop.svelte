@@ -28,7 +28,7 @@
 <div class="desktop">
   <div class="area">
     <section class="window now">
-      {@render titlebar(head.playing ? 'Now Playing' : 'Listening')}
+      {@render titlebar(head.playing ? 'Now Playing' : head.stopped ? 'Stopped' : 'Listening')}
       <div class="now-body">
         <div class="cover sunken"><Cover /></div>
         <h1 class="clamp" style="--lines: 2" use:fit={{ max: 52, min: 34, lines: 2, lineHeight: 1.08, text: head.title }}>{head.title}</h1>

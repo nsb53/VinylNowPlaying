@@ -59,7 +59,7 @@
   </div>
 
   <div class="right">
-    <div class="now">{head.playing ? 'Now playing' : 'Listening'}</div>
+    <div class="now">{head.playing ? 'Now playing' : head.stopped ? 'Stopped' : 'Listening'}</div>
     <h1 class="clamp" style="--lines: 2" use:fit={{ max: 108, min: 60, lines: 2, lineHeight: 1.06, text: head.title }}>{head.title}</h1>
 
     <div class="card">

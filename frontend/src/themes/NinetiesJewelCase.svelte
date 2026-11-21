@@ -36,7 +36,7 @@
   </div>
 
   <div class="right">
-    <div class="top-rule"><div>{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div><div>COMPACT · DISC</div></div>
+    <div class="top-rule"><div>{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div><div>COMPACT · DISC</div></div>
     <h1 class="clamp" style="--lines: 2" use:fit={{ max: 108, min: 60, lines: 2, lineHeight: 0.96, text: head.title }}>{head.title}</h1>
     <div class="artist one-line">{head.artist}</div>
     <div class="credits">

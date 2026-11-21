@@ -21,7 +21,7 @@
 
   <div class="header">
     <div class="tags">
-      <div class="tag solid">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+      <div class="tag solid">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
       <div class="tag">STRICTLY VINYL</div>
       <div class="tag">33⅓ RPM</div>
     </div>

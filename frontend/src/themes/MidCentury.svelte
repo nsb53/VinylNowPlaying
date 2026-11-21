@@ -73,7 +73,7 @@
     <div class="title-block">
       <div class="burst"><Motif kind={motif} /></div>
       <div class="text">
-        <div class="label">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+        <div class="label">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
         <h1 class="clamp" style="--lines: 2" use:fit={{ max: 100, min: 56, lines: 2, lineHeight: 1.05, text: head.title + font.family }}>
           {head.title}
         </h1>
