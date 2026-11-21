@@ -35,7 +35,7 @@
 
   <div class="right">
     <div class="box header">
-      <div class="label">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+      <div class="label">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
       <h1 class="clamp" style="--lines: 2" use:fit={{ max: 108, min: 56, lines: 1, lineHeight: 1.05, text: head.title }}>
         {head.title}
       </h1>

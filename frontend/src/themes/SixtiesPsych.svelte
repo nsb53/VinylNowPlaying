@@ -28,7 +28,7 @@
   <div class="panel"></div>
 
   <div class="right">
-    <div class="label">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+    <div class="label">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
     <h1 class="clamp" style="--lines: 2" use:fit={{ max: 100, min: 56, lines: 2, lineHeight: 1.04, text: head.title }}>{head.title}</h1>
     <div class="artist one-line">{head.artist}</div>
     {#if info.release}<div class="credit one-line">{info.release}</div>{/if}

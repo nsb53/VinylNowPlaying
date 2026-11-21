@@ -33,7 +33,7 @@
         <div class="cover"><Cover /></div>
       </div>
       <div class="header">
-        <div class="status"><span class="dot"></span>{head.playing ? 'NOW PLAYING' : 'LISTENING'} · CH 01</div>
+        <div class="status"><span class="dot"></span>{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'} · CH 01</div>
         <h1 class="clamp" style="--lines: 2" use:fit={{ max: 66, min: 44, lines: 2, lineHeight: 1.12, text: head.title }}>
           {head.title}
         </h1>

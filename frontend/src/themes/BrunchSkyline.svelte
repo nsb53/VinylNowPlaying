@@ -30,7 +30,7 @@
   <div class="top">
     <div class="cover"><Cover /></div>
     <div class="header">
-      <div class="label">SUNDAY JAZZ BRUNCH · {head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+      <div class="label">SUNDAY JAZZ BRUNCH · {head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
       <h1 class="clamp" style="--lines: 2" use:fit={{ max: 112, min: 64, lines: 2, lineHeight: 0.98, text: head.title }}>
         {head.title}
       </h1>

@@ -139,6 +139,7 @@ async function refreshControl() {
     button.classList.toggle("active", button.dataset.vuTheme === (state.config?.vuMeterTheme || "amber"));
   });
   showCurrentTheme(state.config?.displayTheme || "mcm");
+  showRunState(state.status);
   syncManualControls(state);
 }
 
@@ -502,3 +503,33 @@ restartEl.addEventListener("click", async () => {
   if (back) refreshControl();
   setTimeout(() => (restartStatusEl.textContent = ""), 6000);
 });
+
+// ---- Stop and Start: pause listening and lookups without stopping the pages ----
+const stopEl = document.querySelector("#stopApp");
+const startEl = document.querySelector("#startApp");
+
+function showRunState(status) {
+  const stopped = status === "stopped";
+  stopEl.disabled = stopped;
+  startEl.disabled = !stopped;
+  startEl.classList.toggle("primary-inline", stopped);
+  if (!restartStatusEl.textContent || /Running|Stopped/.test(restartStatusEl.textContent)) {
+    restartStatusEl.textContent = stopped ? "Stopped" : "Running";
+  }
+}
+
+async function setRunning(run) {
+  stopEl.disabled = true;
+  startEl.disabled = true;
+  try {
+    const response = await fetch(run ? "/api/start" : "/api/stop", { method: "POST" });
+    const data = await response.json();
+    showRunState(data.status);
+  } catch {
+    // The next refresh shows the real state.
+  }
+  refreshControl();
+}
+
+stopEl.addEventListener("click", () => setRunning(false));
+startEl.addEventListener("click", () => setRunning(true));

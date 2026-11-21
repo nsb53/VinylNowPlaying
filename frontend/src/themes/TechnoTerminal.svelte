@@ -24,7 +24,7 @@
         <div class="cover"><Cover /></div>
       </div>
       <div class="header">
-        <div class="prompt">&gt; {head.playing ? 'NOW_PLAYING' : 'LISTENING'}  //  SIDE_A  //  33.3_RPM</div>
+        <div class="prompt">&gt; {head.playing ? 'NOW_PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}  //  SIDE_A  //  33.3_RPM</div>
         <h1 class="clamp" style="--lines: 2" use:fit={{ max: 84, min: 52, lines: 2, lineHeight: 1.04, text: head.title }}>
           {head.title}
         </h1>

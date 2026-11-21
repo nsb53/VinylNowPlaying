@@ -22,7 +22,7 @@
 
   <div class="header">
     <div class="now">
-      <span class="dot" class:idle={!head.playing}></span>{head.playing ? 'NOW PLAYING' : 'LISTENING'}
+      <span class="dot" class:idle={!head.playing}></span>{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}
     </div>
     <h1 class="clamp" style="--lines: 2" use:fit={{ max: 96, min: 52, lines: 1, lineHeight: 1.05, text: head.title }}>
       {head.title}

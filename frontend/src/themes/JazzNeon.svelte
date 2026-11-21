@@ -44,7 +44,7 @@
 
   <div class="right">
     <div class="header">
-      <div class="sign" class:on={head.playing}>{head.playing ? 'Now Playing' : 'Listening'}</div>
+      <div class="sign" class:on={head.playing}>{head.playing ? 'Now Playing' : head.stopped ? 'Stopped' : 'Listening'}</div>
       <h1 class="clamp" style="--lines: 2" use:fit={{ max: 96, min: 56, lines: 2, lineHeight: 1.06, text: head.title }}>
         {head.title}
       </h1>

@@ -642,6 +642,9 @@ class NowPlayingService:
         self.pending_resync = None
         self.scan_requested = threading.Event()
         self.stop_requested = threading.Event()
+        # Set by Stop on the control page: no listening, scanning or lookups
+        # until Start. The web pages keep running so Start can be pressed.
+        self.paused = threading.Event()
         self.scanning = threading.Lock()
         self.audio_lock = threading.Lock()
         self.level_process = None
@@ -1025,6 +1028,8 @@ class NowPlayingService:
         return track
 
     def scan_once(self, manual=False):
+        if self.paused.is_set():
+            return
         if not self.scanning.acquire(blocking=False):
             return
 
@@ -1133,12 +1138,16 @@ class NowPlayingService:
 
     def loop(self):
         while not self.stop_requested.is_set():
+            if self.paused.is_set():
+                self.scan_requested.clear()
+                self.stop_requested.wait(1)
+                continue
             if not self.is_music_active():
                 with self.lock:
                     manual_mode = self.state.manualMode
                 if not manual_mode:
                     self.update(status="idle", message=self.idle_message(), nextScanAt=None, error=None)
-                while not self.stop_requested.is_set() and not self.is_music_active():
+                while not self.stop_requested.is_set() and not self.paused.is_set() and not self.is_music_active():
                     self.advance_manual_if_needed()
                     with self.lock:
                         self.clear_now_playing_after_silence_if_needed_locked()
@@ -1155,7 +1164,7 @@ class NowPlayingService:
                 self.scan_once()
                 next_scan = time.time() + self.args.interval
                 self.update(nextScanAt=datetime.fromtimestamp(next_scan, timezone.utc).isoformat())
-                while time.time() < next_scan and not self.stop_requested.is_set():
+                while time.time() < next_scan and not self.stop_requested.is_set() and not self.paused.is_set():
                     if self.scan_requested.wait(timeout=1):
                         self.scan_requested.clear()
                         self.scan_once(manual=True)
@@ -1175,6 +1184,9 @@ class NowPlayingService:
     def level_loop(self):
         input_missing = False
         while not self.stop_requested.is_set():
+            if self.paused.is_set():
+                self.stop_requested.wait(1)
+                continue
             command = meter_command(self.args)
             try:
                 with self.audio_lock:
@@ -1190,7 +1202,7 @@ class NowPlayingService:
                 dead_since = None
                 got_level = False
                 for line in self.level_process.stdout:
-                    if self.stop_requested.is_set():
+                    if self.stop_requested.is_set() or self.paused.is_set():
                         break
                     try:
                         levels = json.loads(line)
@@ -1217,7 +1229,7 @@ class NowPlayingService:
                     self.level_process.terminate()
                     self.stop_requested.wait(2)
                 self.level_process.wait(timeout=2)
-                if not got_level and not self.stop_requested.is_set():
+                if not got_level and not self.stop_requested.is_set() and not self.paused.is_set():
                     # The meter could not open the input (unplugged); say so once, then keep retrying.
                     if not input_missing:
                         input_missing = True
@@ -1231,6 +1243,36 @@ class NowPlayingService:
                 if self.level_process and self.level_process.poll() is None:
                     self.level_process.terminate()
                 self.level_process = None
+
+    def stop_listening(self):
+        """Stop from the control page: release the audio input, clear the screen."""
+        if self.paused.is_set():
+            return
+        self.paused.set()
+        log_event("app", action="stopped")
+        with self.audio_lock:
+            if self.level_process and self.level_process.poll() is None:
+                self.level_process.terminate()
+        self.show_stopped()
+        # A scan already under way finishes on its own; clear its result too.
+        threading.Thread(target=self.clear_after_running_scan, daemon=True).start()
+
+    def show_stopped(self):
+        silent = {"rmsDb": -120.0, "peakDb": -120.0, "leftRmsDb": -120.0, "rightRmsDb": -120.0, "updatedAt": utc_now()}
+        self.update(status="stopped", message="Stopped", current=None, nextScanAt=None, error=None, level=silent)
+
+    def clear_after_running_scan(self):
+        if self.scanning.acquire(timeout=120):
+            self.scanning.release()
+        if self.paused.is_set():
+            self.show_stopped()
+
+    def start_listening(self):
+        if not self.paused.is_set():
+            return
+        self.paused.clear()
+        log_event("app", action="started")
+        self.update(status="idle", message=self.idle_message(), error=None)
 
     def restart(self):
         time.sleep(0.5)  # let the reply reach the phone first
@@ -1363,6 +1405,13 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/scan":
             self.service.request_scan()
             self.send_json({"ok": True})
+            return
+        if parsed.path in ("/api/stop", "/api/start"):
+            if parsed.path == "/api/stop":
+                self.service.stop_listening()
+            else:
+                self.service.start_listening()
+            self.send_json({"ok": True, "status": self.service.snapshot().get("status")})
             return
         if parsed.path == "/api/restart":
             # Stop cleanly; on the Pi the system service starts the app again

@@ -79,7 +79,7 @@
 
   <div class="right">
     <div class="header">
-      <div class="stencil">{head.playing ? 'NOW PLAYING' : 'LISTENING'}</div>
+      <div class="stencil">{head.playing ? 'NOW PLAYING' : head.stopped ? 'STOPPED' : 'LISTENING'}</div>
       <h1 class="clamp" style="--lines: 2" use:fit={{ max: 116, min: 60, lines: 2, lineHeight: 1, text: head.title }}>
         {head.title}
       </h1>
