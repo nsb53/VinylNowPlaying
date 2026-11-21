@@ -312,8 +312,43 @@ def fallback_song_info(track, source="Shazam", reason=""):
 PRIOR_FACTS_LIMIT = 30
 # After a failed Gemini lookup, wait this long before asking again for that song.
 GEMINI_RETRY_SECONDS = 300
-gemini_paused_until = 0.0  # set when Google says a usage limit was reached
+# Set when Google says a usage limit was reached. Saved to a file so a restart
+# (or an update) doesn't forget it and spend a request finding out again.
+GEMINI_PAUSE_PATH = ROOT / "state" / "gemini-pause.json"
+try:
+    _pause = json.loads(GEMINI_PAUSE_PATH.read_text(encoding="utf-8"))
+    gemini_paused_until = float(_pause.get("until", 0))
+except (OSError, ValueError, AttributeError):
+    _pause, gemini_paused_until = {}, 0.0
 gemini_retry_at = {}  # song key -> time it may be asked again
+gemini_pause_daily = bool(_pause.get("daily")) if isinstance(_pause, dict) else False
+gemini_last_ok_at = None  # when Gemini last answered
+gemini_last_error = None  # {"at": time, "detail": "..."} from the last failed call
+
+
+def gemini_status():
+    """What the control page shows about Gemini: working, paused or failing."""
+    if not gemini_metadata.is_configured():
+        return {"state": "off"}
+    now = time.time()
+    iso = lambda t: datetime.fromtimestamp(t, timezone.utc).isoformat()
+    if now < gemini_paused_until:
+        return {"state": "paused", "daily": gemini_pause_daily, "until": iso(gemini_paused_until)}
+    last_ok = gemini_last_ok_at or 0
+    if gemini_last_error and gemini_last_error["at"] > last_ok and now - gemini_last_error["at"] < GEMINI_RETRY_SECONDS:
+        return {"state": "retrying", "detail": gemini_last_error["detail"], "at": iso(gemini_last_error["at"])}
+    return {"state": "ok", "lastAnswerAt": iso(gemini_last_ok_at) if gemini_last_ok_at else None}
+
+
+def gemini_logger(event, **fields):
+    """Logs as usual, and remembers why a Gemini call failed."""
+    global gemini_last_error
+    log_event(event, **fields)
+    result = fields.get("result")
+    if event == "gemini" and result in ("http_error", "network_error", "empty_response", "parse_error"):
+        detail = {"http_error": f"Google error {fields.get('status')}", "network_error": "No connection to Google"}.get(
+            result, "Unreadable answer")
+        gemini_last_error = {"at": time.time(), "detail": detail}
 
 
 def prior_facts_for_artist(cache, track, limit=PRIOR_FACTS_LIMIT):
@@ -333,7 +368,7 @@ def prior_facts_for_artist(cache, track, limit=PRIOR_FACTS_LIMIT):
 
 
 def lookup_song_info(track):
-    global gemini_paused_until
+    global gemini_paused_until, gemini_pause_daily, gemini_last_ok_at
     cache = load_metadata_cache()
     key = metadata_cache_key(track)
     cached = cache.get(key)
@@ -354,9 +389,15 @@ def lookup_song_info(track):
 
     avoid_facts = prior_facts_for_artist(cache, track)
     try:
-        enriched = gemini_metadata.lookup(track, logger=log_event, avoid_facts=avoid_facts)
+        enriched = gemini_metadata.lookup(track, logger=gemini_logger, avoid_facts=avoid_facts)
     except gemini_metadata.RateLimited as limit:
         gemini_paused_until = time.time() + limit.retry_after
+        gemini_pause_daily = limit.daily
+        try:
+            GEMINI_PAUSE_PATH.parent.mkdir(exist_ok=True)
+            GEMINI_PAUSE_PATH.write_text(json.dumps({"until": gemini_paused_until, "daily": limit.daily}), encoding="utf-8")
+        except OSError:
+            pass
         resume = datetime.fromtimestamp(gemini_paused_until).strftime("%H:%M")
         log_event("metadata", result="paused", reason="daily_limit" if limit.daily else "rate_limit", until=resume)
         return fallback_song_info(track, reason="gemini_limit")
@@ -365,6 +406,7 @@ def lookup_song_info(track):
         log_event("metadata", result="failed", retry_in_seconds=GEMINI_RETRY_SECONDS)
         return fallback_song_info(track, reason="gemini_failed")
     gemini_retry_at.pop(key, None)
+    gemini_last_ok_at = time.time()
 
     info = {
         "source": "Gemini",
@@ -1365,6 +1407,7 @@ class Handler(SimpleHTTPRequestHandler):
             # Lets a screen work out timing without trusting its own clock.
             payload["serverTime"] = utc_now()
             payload["build"] = page_build()
+            payload["gemini"] = gemini_status()
             self.send_json(payload)
             return
         if parsed.path == "/api/logs":
