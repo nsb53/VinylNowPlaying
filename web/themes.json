@@ -18,6 +18,7 @@
   { "id": "graffiti", "label": "Graffiti", "group": "1990s", "colors": ["#0E0E10", "#FF2E88", "#C6F432"] },
   { "id": "nineties-rave", "label": "Rave Flyer", "group": "1990s", "colors": ["#060607", "#FF9DE6", "#9DFCFF"] },
   { "id": "nineties-jewelcase", "label": "Jewel Case", "group": "1990s", "colors": ["#15171B", "#D8DCE6", "#9DD3F7"] },
+  { "id": "country-desert", "label": "Desert Sunset", "group": "Country", "colors": ["#E8674A", "#3B1E54", "#2A9D8F"] },
   { "id": "jazz-neon", "label": "After Hours", "group": "Jazz", "colors": ["#120C10", "#FF5FA2", "#5FE3FF"] },
   { "id": "brunch-skyline", "label": "Brunch · Skyline", "group": "Jazz", "colors": ["#E9B43C", "#2B2A28", "#F6D480"] },
   { "id": "brunch-ticket", "label": "Brunch · Ticket", "group": "Jazz", "colors": ["#2A9499", "#FBEFDD", "#1C1C1C"] },
