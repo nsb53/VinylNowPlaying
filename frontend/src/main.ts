@@ -69,6 +69,9 @@ import '@fontsource/alfa-slab-one/400.css';
 import '@fontsource/bitter/400.css';
 import '@fontsource/bitter/500.css';
 import '@fontsource/bitter/700.css';
+import '@fontsource/mountains-of-christmas/700.css';
+import '@fontsource/fraunces/600-italic.css';
+import '@fontsource/fraunces/700-italic.css';
 import './app.css';
 import App from './App.svelte';
 

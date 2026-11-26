@@ -27,6 +27,11 @@
   import NinetiesRave from './themes/NinetiesRave.svelte';
   import NinetiesJewelCase from './themes/NinetiesJewelCase.svelte';
   import CountryDesert from './themes/CountryDesert.svelte';
+  import HolidayThanksgiving from './themes/HolidayThanksgiving.svelte';
+  import HolidayXmasLight from './themes/HolidayXmasLight.svelte';
+  import HolidayXmasDark from './themes/HolidayXmasDark.svelte';
+  import HolidaySnowyLight from './themes/HolidaySnowyLight.svelte';
+  import HolidaySnowyDark from './themes/HolidaySnowyDark.svelte';
 
   // Theme names, groups and colours live in web/themes.json (shared with the
   // server and the control page). The Mid-Century family is drawn by one
@@ -56,6 +61,11 @@
     'nineties-rave': NinetiesRave,
     'nineties-jewelcase': NinetiesJewelCase,
     'country-desert': CountryDesert,
+    'holiday-thanksgiving': HolidayThanksgiving,
+    'holiday-xmas-light': HolidayXmasLight,
+    'holiday-xmas-dark': HolidayXmasDark,
+    'holiday-snowy-light': HolidaySnowyLight,
+    'holiday-snowy-dark': HolidaySnowyDark,
   };
   // Every theme is drawn on a fixed 1920x1080 stage and scaled to the screen,
   // so the layout is identical on every 16:9 TV. The page around it takes the
